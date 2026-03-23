@@ -17,6 +17,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 )
 
@@ -313,13 +314,14 @@ func (s *rpcServer) handleRequest(req rpcRequest) rpcResponse {
 				"capabilities": []string{
 					"session.basic",
 					"session.resize.min",
-					"proxy.http_connect",
-					"proxy.socks5",
-					"proxy.stream",
-					"proxy.stream.push",
-				},
+				"proxy.http_connect",
+				"proxy.socks5",
+				"proxy.stream",
+				"proxy.stream.push",
+				"fs.list",
 			},
-		}
+		},
+	}
 	case "ping":
 		return rpcResponse{
 			ID: req.ID,
@@ -328,6 +330,8 @@ func (s *rpcServer) handleRequest(req rpcRequest) rpcResponse {
 				"pong": true,
 			},
 		}
+	case "fs.list":
+		return s.handleFSList(req)
 	case "proxy.open":
 		return s.handleProxyOpen(req)
 	case "proxy.close":
@@ -357,6 +361,106 @@ func (s *rpcServer) handleRequest(req rpcRequest) rpcResponse {
 				Message: fmt.Sprintf("unknown method %q", req.Method),
 			},
 		}
+	}
+}
+
+func (s *rpcServer) handleFSList(req rpcRequest) rpcResponse {
+	requestedPath, ok := getStringParam(req.Params, "path")
+	requestedPath = strings.TrimSpace(requestedPath)
+	if !ok || requestedPath == "" {
+		return rpcResponse{
+			ID: req.ID,
+			OK: false,
+			Error: &rpcError{
+				Code:    "invalid_params",
+				Message: "fs.list requires path",
+			},
+		}
+	}
+
+	cleanedPath := filepath.Clean(requestedPath)
+	directoryEntries, err := os.ReadDir(cleanedPath)
+	if err != nil {
+		return rpcResponse{
+			ID: req.ID,
+			OK: false,
+			Error: &rpcError{
+				Code:    fsListErrorCode(err),
+				Message: err.Error(),
+			},
+		}
+	}
+
+	type listedEntry struct {
+		name string
+		path string
+		kind string
+	}
+
+	entries := make([]listedEntry, 0, len(directoryEntries))
+	for _, entry := range directoryEntries {
+		entries = append(entries, listedEntry{
+			name: entry.Name(),
+			path: filepath.Join(cleanedPath, entry.Name()),
+			kind: fsListEntryKind(entry),
+		})
+	}
+	sort.Slice(entries, func(i, j int) bool {
+		return strings.Compare(entries[i].name, entries[j].name) < 0
+	})
+
+	payloadEntries := make([]map[string]any, 0, len(entries))
+	for _, entry := range entries {
+		payloadEntries = append(payloadEntries, map[string]any{
+			"name": entry.name,
+			"path": entry.path,
+			"kind": entry.kind,
+		})
+	}
+
+	return rpcResponse{
+		ID: req.ID,
+		OK: true,
+		Result: map[string]any{
+			"path":    cleanedPath,
+			"entries": payloadEntries,
+		},
+	}
+}
+
+func fsListEntryKind(entry os.DirEntry) string {
+	mode := entry.Type()
+	switch {
+	case mode&os.ModeSymlink != 0:
+		return "symlink"
+	case entry.IsDir():
+		return "directory"
+	case mode.IsRegular():
+		return "file"
+	default:
+		info, err := entry.Info()
+		if err == nil {
+			switch {
+			case info.Mode()&os.ModeSymlink != 0:
+				return "symlink"
+			case info.IsDir():
+				return "directory"
+			}
+		}
+		return "file"
+	}
+}
+
+func fsListErrorCode(err error) string {
+	switch {
+	case errors.Is(err, os.ErrNotExist):
+		return "not_found"
+	case errors.Is(err, os.ErrPermission):
+		return "permission_denied"
+	case errors.Is(err, syscall.ENOTDIR):
+		return "not_directory"
+	default:
+		return "fs_error"
 	}
 }
 

@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"io"
 	"math"
 	"net"
@@ -175,6 +176,138 @@ func TestRunStdioHelloAndPing(t *testing.T) {
 	}
 	if ok, _ := second["ok"].(bool); !ok {
 		t.Fatalf("second response should be ok=true: %v", second)
+	}
+}
+
+func TestHelloAdvertisesFSListCapability(t *testing.T) {
+	input := strings.NewReader(`{"id":1,"method":"hello","params":{}}` + "\n")
+	var out bytes.Buffer
+	code := run([]string{"serve", "--stdio"}, input, &out, &bytes.Buffer{})
+	if code != 0 {
+		t.Fatalf("run serve exit code = %d, want 0", code)
+	}
+
+	lines := strings.Split(strings.TrimSpace(out.String()), "\n")
+	if len(lines) != 1 {
+		t.Fatalf("got %d response lines, want 1: %q", len(lines), out.String())
+	}
+
+	var response map[string]any
+	if err := json.Unmarshal([]byte(lines[0]), &response); err != nil {
+		t.Fatalf("failed to decode hello response: %v", err)
+	}
+	if ok, _ := response["ok"].(bool); !ok {
+		t.Fatalf("hello response should be ok=true: %v", response)
+	}
+
+	result, _ := response["result"].(map[string]any)
+	if result == nil {
+		t.Fatalf("hello response missing result object: %v", response)
+	}
+	capabilities, _ := result["capabilities"].([]any)
+	for _, capability := range capabilities {
+		if capability == "fs.list" {
+			return
+		}
+	}
+	t.Fatalf("hello should advertise fs.list: %v", result)
+}
+
+func TestFSListReturnsDirectoryEntries(t *testing.T) {
+	root := t.TempDir()
+	if err := os.Mkdir(filepath.Join(root, "Sources"), 0o755); err != nil {
+		t.Fatalf("mkdir Sources: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "README.md"), []byte("hi\n"), 0o644); err != nil {
+		t.Fatalf("write README.md: %v", err)
+	}
+	if err := os.Symlink("Sources", filepath.Join(root, "current")); err != nil {
+		t.Fatalf("create symlink: %v", err)
+	}
+
+	request := fmt.Sprintf(`{"id":1,"method":"fs.list","params":{"path":%q}}`, root)
+	input := strings.NewReader(request + "\n")
+	var out bytes.Buffer
+	code := run([]string{"serve", "--stdio"}, input, &out, &bytes.Buffer{})
+	if code != 0 {
+		t.Fatalf("run serve exit code = %d, want 0", code)
+	}
+
+	lines := strings.Split(strings.TrimSpace(out.String()), "\n")
+	if len(lines) != 1 {
+		t.Fatalf("got %d response lines, want 1: %q", len(lines), out.String())
+	}
+
+	var response map[string]any
+	if err := json.Unmarshal([]byte(lines[0]), &response); err != nil {
+		t.Fatalf("failed to decode fs.list response: %v", err)
+	}
+	if ok, _ := response["ok"].(bool); !ok {
+		t.Fatalf("fs.list response should be ok=true: %v", response)
+	}
+
+	result, _ := response["result"].(map[string]any)
+	if result == nil {
+		t.Fatalf("fs.list response missing result object: %v", response)
+	}
+	if gotPath, _ := result["path"].(string); gotPath != filepath.Clean(root) {
+		t.Fatalf("fs.list path = %q, want %q", gotPath, filepath.Clean(root))
+	}
+
+	entries, _ := result["entries"].([]any)
+	if len(entries) != 3 {
+		t.Fatalf("fs.list returned %d entries, want 3: %v", len(entries), result)
+	}
+
+	seenKinds := map[string]string{}
+	seenPaths := map[string]string{}
+	for _, rawEntry := range entries {
+		entry, _ := rawEntry.(map[string]any)
+		name, _ := entry["name"].(string)
+		kind, _ := entry["kind"].(string)
+		path, _ := entry["path"].(string)
+		seenKinds[name] = kind
+		seenPaths[name] = path
+	}
+
+	if got := seenKinds["Sources"]; got != "directory" {
+		t.Fatalf("Sources kind = %q, want directory (entries=%v)", got, result)
+	}
+	if got := seenKinds["README.md"]; got != "file" {
+		t.Fatalf("README.md kind = %q, want file (entries=%v)", got, result)
+	}
+	if got := seenKinds["current"]; got != "symlink" {
+		t.Fatalf("current kind = %q, want symlink (entries=%v)", got, result)
+	}
+	if got := seenPaths["Sources"]; got != filepath.Join(root, "Sources") {
+		t.Fatalf("Sources path = %q, want %q", got, filepath.Join(root, "Sources"))
+	}
+}
+
+func TestFSListRejectsMissingPath(t *testing.T) {
+	input := strings.NewReader(`{"id":1,"method":"fs.list","params":{}}` + "\n")
+	var out bytes.Buffer
+	code := run([]string{"serve", "--stdio"}, input, &out, &bytes.Buffer{})
+	if code != 0 {
+		t.Fatalf("run serve exit code = %d, want 0", code)
+	}
+
+	lines := strings.Split(strings.TrimSpace(out.String()), "\n")
+	if len(lines) != 1 {
+		t.Fatalf("got %d response lines, want 1: %q", len(lines), out.String())
+	}
+
+	var response map[string]any
+	if err := json.Unmarshal([]byte(lines[0]), &response); err != nil {
+		t.Fatalf("failed to decode fs.list error response: %v", err)
+	}
+	if ok, _ := response["ok"].(bool); ok {
+		t.Fatalf("fs.list should reject a missing path param: %v", response)
+	}
+
+	errorObject, _ := response["error"].(map[string]any)
+	if got := errorObject["code"]; got != "invalid_params" {
+		t.Fatalf("fs.list missing path error code = %v, want invalid_params (payload=%v)", got, response)
 	}
 }
 

@@ -10,6 +10,9 @@ enum SessionPersistencePolicy {
     static let defaultSidebarWidth: Double = 200
     static let minimumSidebarWidth: Double = 180
     static let maximumSidebarWidth: Double = 600
+    static let defaultFileExplorerWidth: Double = 280
+    static let minimumFileExplorerWidth: Double = minimumSidebarWidth
+    static let maximumFileExplorerWidth: Double = maximumSidebarWidth
     static let minimumWindowWidth: Double = 300
     static let minimumWindowHeight: Double = 200
     static let autosaveInterval: TimeInterval = 8.0
@@ -23,6 +26,12 @@ enum SessionPersistencePolicy {
         let fallback = defaultSidebarWidth
         guard let candidate, candidate.isFinite else { return fallback }
         return min(max(candidate, minimumSidebarWidth), maximumSidebarWidth)
+    }
+
+    static func sanitizedFileExplorerWidth(_ candidate: Double?) -> Double {
+        let fallback = defaultFileExplorerWidth
+        guard let candidate, candidate.isFinite else { return fallback }
+        return min(max(candidate, minimumFileExplorerWidth), maximumFileExplorerWidth)
     }
 
     static func truncatedScrollback(_ text: String?) -> String? {
@@ -86,15 +95,9 @@ enum SessionPersistencePolicy {
 }
 
 enum SessionRestorePolicy {
-    static func isRunningUnderAutomatedTests(
+    static func isRunningUnderXCTestHost(
         environment: [String: String] = ProcessInfo.processInfo.environment
     ) -> Bool {
-        if environment["CMUX_UI_TEST_MODE"] == "1" {
-            return true
-        }
-        if environment.keys.contains(where: { $0.hasPrefix("CMUX_UI_TEST_") }) {
-            return true
-        }
         if environment["XCTestConfigurationFilePath"] != nil {
             return true
         }
@@ -114,6 +117,25 @@ enum SessionRestorePolicy {
             return true
         }
         return false
+    }
+
+    static func isRunningUnderUITestApp(
+        environment: [String: String] = ProcessInfo.processInfo.environment
+    ) -> Bool {
+        if environment["CMUX_UI_TEST_MODE"] == "1" {
+            return true
+        }
+        if environment.keys.contains(where: { $0.hasPrefix("CMUX_UI_TEST_") }) {
+            return true
+        }
+        return false
+    }
+
+    static func isRunningUnderAutomatedTests(
+        environment: [String: String] = ProcessInfo.processInfo.environment
+    ) -> Bool {
+        isRunningUnderUITestApp(environment: environment)
+            || isRunningUnderXCTestHost(environment: environment)
     }
 
     static func shouldAttemptRestore(
@@ -193,6 +215,11 @@ enum SessionSidebarSelection: String, Codable, Sendable, Equatable {
 struct SessionSidebarSnapshot: Codable, Sendable {
     var isVisible: Bool
     var selection: SessionSidebarSelection
+    var width: Double?
+}
+
+struct SessionFileExplorerSnapshot: Codable, Sendable {
+    var isVisible: Bool
     var width: Double?
 }
 
@@ -352,6 +379,7 @@ struct SessionWindowSnapshot: Codable, Sendable {
     var display: SessionDisplaySnapshot?
     var tabManager: SessionTabManagerSnapshot
     var sidebar: SessionSidebarSnapshot
+    var fileExplorer: SessionFileExplorerSnapshot? = nil
 }
 
 struct AppSessionSnapshot: Codable, Sendable {

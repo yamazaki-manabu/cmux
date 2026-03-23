@@ -9,6 +9,7 @@ enum KeyboardShortcutSettings {
     enum Action: String, CaseIterable, Identifiable {
         // Titlebar / primary UI
         case toggleSidebar
+        case toggleFileExplorer
         case newTab
         case newWindow
         case closeWindow
@@ -52,6 +53,7 @@ enum KeyboardShortcutSettings {
         var label: String {
             switch self {
             case .toggleSidebar: return String(localized: "shortcut.toggleSidebar.label", defaultValue: "Toggle Sidebar")
+            case .toggleFileExplorer: return String(localized: "shortcut.toggleFileExplorer.label", defaultValue: "Toggle File Explorer")
             case .newTab: return String(localized: "shortcut.newWorkspace.label", defaultValue: "New Workspace")
             case .newWindow: return String(localized: "shortcut.newWindow.label", defaultValue: "New Window")
             case .closeWindow: return String(localized: "shortcut.closeWindow.label", defaultValue: "Close Window")
@@ -89,6 +91,7 @@ enum KeyboardShortcutSettings {
         var defaultsKey: String {
             switch self {
             case .toggleSidebar: return "shortcut.toggleSidebar"
+            case .toggleFileExplorer: return "shortcut.toggleFileExplorer"
             case .newTab: return "shortcut.newTab"
             case .newWindow: return "shortcut.newWindow"
             case .closeWindow: return "shortcut.closeWindow"
@@ -127,6 +130,8 @@ enum KeyboardShortcutSettings {
             switch self {
             case .toggleSidebar:
                 return StoredShortcut(key: "b", command: true, shift: false, option: false, control: false)
+            case .toggleFileExplorer:
+                return StoredShortcut(key: "e", command: true, shift: true, option: false, control: false)
             case .newTab:
                 return StoredShortcut(key: "n", command: true, shift: false, option: false, control: false)
             case .newWindow:

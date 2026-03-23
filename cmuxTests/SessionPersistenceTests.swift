@@ -86,6 +86,22 @@ final class SessionPersistenceTests: XCTestCase {
         )
     }
 
+    func testSessionWindowSnapshotRoundTripsFileExplorerState() throws {
+        let snapshot = SessionWindowSnapshot(
+            frame: nil,
+            display: nil,
+            tabManager: makeTabManagerSnapshot(),
+            sidebar: SessionSidebarSnapshot(isVisible: true, selection: .tabs, width: 220),
+            fileExplorer: SessionFileExplorerSnapshot(isVisible: true, width: 280)
+        )
+
+        let data = try JSONEncoder().encode(snapshot)
+        let decoded = try JSONDecoder().decode(SessionWindowSnapshot.self, from: data)
+
+        XCTAssertEqual(decoded.fileExplorer?.isVisible, true)
+        XCTAssertEqual(decoded.fileExplorer?.width, 280)
+    }
+
     func testSaveSkipsRewritingIdenticalSnapshotData() throws {
         let tempDir = FileManager.default.temporaryDirectory
             .appendingPathComponent("cmux-session-tests-\(UUID().uuidString)", isDirectory: true)
@@ -765,6 +781,25 @@ final class SessionPersistenceTests: XCTestCase {
     }
 
     private func makeSnapshot(version: Int) -> AppSessionSnapshot {
+        let window = SessionWindowSnapshot(
+            frame: SessionRectSnapshot(x: 10, y: 20, width: 900, height: 700),
+            display: SessionDisplaySnapshot(
+                displayID: 42,
+                frame: SessionRectSnapshot(x: 0, y: 0, width: 1920, height: 1200),
+                visibleFrame: SessionRectSnapshot(x: 0, y: 25, width: 1920, height: 1175)
+            ),
+            tabManager: makeTabManagerSnapshot(),
+            sidebar: SessionSidebarSnapshot(isVisible: true, selection: .tabs, width: 240)
+        )
+
+        return AppSessionSnapshot(
+            version: version,
+            createdAt: Date().timeIntervalSince1970,
+            windows: [window]
+        )
+    }
+
+    private func makeTabManagerSnapshot() -> SessionTabManagerSnapshot {
         let workspace = SessionWorkspaceSnapshot(
             processTitle: "Terminal",
             customTitle: "Restored",
@@ -780,26 +815,9 @@ final class SessionPersistenceTests: XCTestCase {
             gitBranch: nil
         )
 
-        let tabManager = SessionTabManagerSnapshot(
+        return SessionTabManagerSnapshot(
             selectedWorkspaceIndex: 0,
             workspaces: [workspace]
-        )
-
-        let window = SessionWindowSnapshot(
-            frame: SessionRectSnapshot(x: 10, y: 20, width: 900, height: 700),
-            display: SessionDisplaySnapshot(
-                displayID: 42,
-                frame: SessionRectSnapshot(x: 0, y: 0, width: 1920, height: 1200),
-                visibleFrame: SessionRectSnapshot(x: 0, y: 25, width: 1920, height: 1175)
-            ),
-            tabManager: tabManager,
-            sidebar: SessionSidebarSnapshot(isVisible: true, selection: .tabs, width: 240)
-        )
-
-        return AppSessionSnapshot(
-            version: version,
-            createdAt: Date().timeIntervalSince1970,
-            windows: [window]
         )
     }
 

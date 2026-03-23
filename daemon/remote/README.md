@@ -19,18 +19,20 @@ When invoked as `cmux` (via wrapper/symlink installed during bootstrap), the bin
 5. `proxy.write`
 6. `proxy.stream.subscribe`
 7. async `proxy.stream.data` / `proxy.stream.eof` / `proxy.stream.error` events
-8. `session.open`
-9. `session.close`
-10. `session.attach`
-11. `session.resize`
-12. `session.detach`
-13. `session.status`
+8. `fs.list`
+9. `session.open`
+10. `session.close`
+11. `session.attach`
+12. `session.resize`
+13. `session.detach`
+14. `session.status`
 
 Current integration in cmux:
 1. `workspace.remote.configure` now bootstraps this binary over SSH when missing.
 2. Client sends `hello` before enabling remote proxy transport.
 3. Local workspace proxy broker serves SOCKS5 + HTTP CONNECT and tunnels stream traffic through `proxy.*` RPC over `serve --stdio`, using daemon-pushed stream events instead of polling reads.
-4. Daemon status/capabilities are exposed in `workspace.remote.status -> remote.daemon` (including `session.resize.min`).
+4. Remote file explorer uses `fs.list` for shallow directory listing on SSH workspaces.
+5. Daemon status/capabilities are exposed in `workspace.remote.status -> remote.daemon` (including `session.resize.min` and `fs.list`).
 
 `workspace.remote.configure` contract notes:
 1. `port` / `local_proxy_port` accept integer values and numeric strings; explicit `null` clears each field.

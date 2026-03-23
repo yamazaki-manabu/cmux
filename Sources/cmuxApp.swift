@@ -133,11 +133,44 @@ enum UITestLaunchManifest {
     }
 }
 
+enum WindowFrameAutosaveCleanup {
+    static func removeMainWindowAutosaveFrames(defaults: UserDefaults = .standard) {
+        let keysToRemove = defaults.dictionaryRepresentation().keys.filter { key in
+            key.hasPrefix("NSWindow Frame SwiftUI.")
+                && key.contains("ContentView")
+                && key.contains("AppWindow")
+        }
+
+        for key in keysToRemove {
+            defaults.removeObject(forKey: key)
+        }
+    }
+}
+
+private struct XCTestHostWindowBootstrapView: View {
+    @State private var didCloseBootstrapWindow = false
+
+    var body: some View {
+        Color.clear
+            .frame(width: 1, height: 1)
+            .background(WindowAccessor { window in
+                guard !didCloseBootstrapWindow else { return }
+                didCloseBootstrapWindow = true
+                DispatchQueue.main.async {
+                    window.orderOut(nil)
+                    window.close()
+                }
+            })
+            .accessibilityHidden(true)
+    }
+}
+
 @main
 struct cmuxApp: App {
     @StateObject private var tabManager: TabManager
     @StateObject private var notificationStore = TerminalNotificationStore.shared
     @StateObject private var sidebarState = SidebarState()
+    @StateObject private var fileExplorerState = FileExplorerSidebarState()
     @StateObject private var sidebarSelectionState = SidebarSelectionState()
     private let primaryWindowId = UUID()
     @AppStorage(AppearanceSettings.appearanceModeKey) private var appearanceMode = AppearanceSettings.defaultMode.rawValue
@@ -147,6 +180,7 @@ struct cmuxApp: App {
     private var showSidebarDevBuildBanner = DevBuildBannerDebugSettings.defaultShowSidebarBanner
     @AppStorage(SocketControlSettings.appStorageKey) private var socketControlMode = SocketControlSettings.defaultMode.rawValue
     @AppStorage(KeyboardShortcutSettings.Action.toggleSidebar.defaultsKey) private var toggleSidebarShortcutData = Data()
+    @AppStorage(KeyboardShortcutSettings.Action.toggleFileExplorer.defaultsKey) private var toggleFileExplorerShortcutData = Data()
     @AppStorage(KeyboardShortcutSettings.Action.newTab.defaultsKey) private var newWorkspaceShortcutData = Data()
     @AppStorage(KeyboardShortcutSettings.Action.newWindow.defaultsKey) private var newWindowShortcutData = Data()
     @AppStorage(KeyboardShortcutSettings.Action.showNotifications.defaultsKey) private var showNotificationsShortcutData = Data()
@@ -176,6 +210,7 @@ struct cmuxApp: App {
 
     init() {
         UITestLaunchManifest.applyIfPresent()
+        WindowFrameAutosaveCleanup.removeMainWindowAutosaveFrames()
 
         if SocketControlSettings.shouldBlockUntaggedDebugLaunch() {
             Self.terminateForMissingLaunchTag()
@@ -213,7 +248,14 @@ struct cmuxApp: App {
 
         // UI tests depend on AppDelegate wiring happening even if SwiftUI view appearance
         // callbacks (e.g. `.onAppear`) are delayed or skipped.
-        appDelegate.configure(tabManager: tabManager, notificationStore: notificationStore, sidebarState: sidebarState)
+        if !SessionRestorePolicy.isRunningUnderXCTestHost() {
+            appDelegate.configure(
+                tabManager: tabManager,
+                notificationStore: notificationStore,
+                sidebarState: sidebarState,
+                fileExplorerState: fileExplorerState
+            )
+        }
     }
 
     private static func terminateForMissingLaunchTag() -> Never {
@@ -332,151 +374,161 @@ struct cmuxApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView(updateViewModel: appDelegate.updateViewModel, windowId: primaryWindowId)
-                .environmentObject(tabManager)
-                .environmentObject(notificationStore)
-                .environmentObject(sidebarState)
-                .environmentObject(sidebarSelectionState)
-                .onAppear {
+            if SessionRestorePolicy.isRunningUnderXCTestHost() {
+                XCTestHostWindowBootstrapView()
+            } else {
+                ContentView(updateViewModel: appDelegate.updateViewModel, windowId: primaryWindowId)
+                    .environmentObject(tabManager)
+                    .environmentObject(notificationStore)
+                    .environmentObject(sidebarState)
+                    .environmentObject(fileExplorerState)
+                    .environmentObject(sidebarSelectionState)
+                    .onAppear {
 #if DEBUG
-                    if ProcessInfo.processInfo.environment["CMUX_UI_TEST_MODE"] == "1" {
-                        UpdateLogStore.shared.append("ui test: cmuxApp onAppear")
-                    }
+                        if ProcessInfo.processInfo.environment["CMUX_UI_TEST_MODE"] == "1" {
+                            UpdateLogStore.shared.append("ui test: cmuxApp onAppear")
+                        }
 #endif
-                    // Start the Unix socket controller for programmatic access
-                    updateSocketController()
-                    appDelegate.configure(tabManager: tabManager, notificationStore: notificationStore, sidebarState: sidebarState)
-                    applyAppearance()
-                    if ProcessInfo.processInfo.environment["CMUX_UI_TEST_SHOW_SETTINGS"] == "1" {
-                        DispatchQueue.main.async {
-                            appDelegate.openPreferencesWindow(debugSource: "uiTestShowSettings")
+                        // Start the Unix socket controller for programmatic access
+                        updateSocketController()
+                        appDelegate.configure(
+                            tabManager: tabManager,
+                            notificationStore: notificationStore,
+                            sidebarState: sidebarState,
+                            fileExplorerState: fileExplorerState
+                        )
+                        applyAppearance()
+                        if ProcessInfo.processInfo.environment["CMUX_UI_TEST_SHOW_SETTINGS"] == "1" {
+                            DispatchQueue.main.async {
+                                appDelegate.openPreferencesWindow(debugSource: "uiTestShowSettings")
+                            }
                         }
                     }
-                }
-                .onChange(of: appearanceMode) { _ in
-                    applyAppearance()
-                }
-                .onChange(of: socketControlMode) { _ in
-                    updateSocketController()
-                }
+                    .onChange(of: appearanceMode) { _ in
+                        applyAppearance()
+                    }
+                    .onChange(of: socketControlMode) { _ in
+                        updateSocketController()
+                    }
+            }
         }
         .windowStyle(.hiddenTitleBar)
         .commands {
-            CommandGroup(replacing: .appSettings) {
-                Button(String(localized: "menu.app.settings", defaultValue: "Settings…")) {
-                    appDelegate.openPreferencesWindow(debugSource: "menu.cmdComma")
+                CommandGroup(replacing: .appSettings) {
+                    Button(String(localized: "menu.app.settings", defaultValue: "Settings…")) {
+                        appDelegate.openPreferencesWindow(debugSource: "menu.cmdComma")
+                    }
+                    .keyboardShortcut(",", modifiers: .command)
                 }
-                .keyboardShortcut(",", modifiers: .command)
-            }
 
-            CommandGroup(replacing: .appInfo) {
-                Button(String(localized: "menu.app.about", defaultValue: "About cmux")) {
-                    showAboutPanel()
+                CommandGroup(replacing: .appInfo) {
+                    Button(String(localized: "menu.app.about", defaultValue: "About cmux")) {
+                        showAboutPanel()
+                    }
+                    Button(String(localized: "menu.app.ghosttySettings", defaultValue: "Ghostty Settings…")) {
+                        GhosttyApp.shared.openConfigurationInTextEdit()
+                    }
+                    Button(String(localized: "menu.app.reloadConfiguration", defaultValue: "Reload Configuration")) {
+                        GhosttyApp.shared.reloadConfiguration(source: "menu.reload_configuration")
+                    }
+                    .keyboardShortcut(",", modifiers: [.command, .shift])
+                    Divider()
+                    Button(String(localized: "menu.app.checkForUpdates", defaultValue: "Check for Updates…")) {
+                        appDelegate.checkForUpdates(nil)
+                    }
+                    InstallUpdateMenuItem(model: appDelegate.updateViewModel)
                 }
-                Button(String(localized: "menu.app.ghosttySettings", defaultValue: "Ghostty Settings…")) {
-                    GhosttyApp.shared.openConfigurationInTextEdit()
-                }
-                Button(String(localized: "menu.app.reloadConfiguration", defaultValue: "Reload Configuration")) {
-                    GhosttyApp.shared.reloadConfiguration(source: "menu.reload_configuration")
-                }
-                .keyboardShortcut(",", modifiers: [.command, .shift])
-                Divider()
-                Button(String(localized: "menu.app.checkForUpdates", defaultValue: "Check for Updates…")) {
-                    appDelegate.checkForUpdates(nil)
-                }
-                InstallUpdateMenuItem(model: appDelegate.updateViewModel)
-            }
 
 #if DEBUG
-            CommandMenu("Update Pill") {
-                Button("Show Update Pill") {
-                    appDelegate.showUpdatePill(nil)
+                CommandMenu("Update Pill") {
+                    Button("Show Update Pill") {
+                        appDelegate.showUpdatePill(nil)
+                    }
+                    Button("Show Long Nightly Pill") {
+                        appDelegate.showUpdatePillLongNightly(nil)
+                    }
+                    Button("Show Loading State") {
+                        appDelegate.showUpdatePillLoading(nil)
+                    }
+                    Button("Hide Update Pill") {
+                        appDelegate.hideUpdatePill(nil)
+                    }
+                    Button("Automatic Update Pill") {
+                        appDelegate.clearUpdatePillOverride(nil)
+                    }
                 }
-                Button("Show Long Nightly Pill") {
-                    appDelegate.showUpdatePillLongNightly(nil)
-                }
-                Button("Show Loading State") {
-                    appDelegate.showUpdatePillLoading(nil)
-                }
-                Button("Hide Update Pill") {
-                    appDelegate.hideUpdatePill(nil)
-                }
-                Button("Automatic Update Pill") {
-                    appDelegate.clearUpdatePillOverride(nil)
-                }
-            }
 #endif
 
-            CommandMenu(String(localized: "menu.notifications.title", defaultValue: "Notifications")) {
-                let snapshot = notificationMenuSnapshot
+                CommandMenu(String(localized: "menu.notifications.title", defaultValue: "Notifications")) {
+                    let snapshot = notificationMenuSnapshot
 
-                Button(snapshot.stateHintTitle) {}
-                    .disabled(true)
+                    Button(snapshot.stateHintTitle) {}
+                        .disabled(true)
 
-                if !snapshot.recentNotifications.isEmpty {
-                    Divider()
+                    if !snapshot.recentNotifications.isEmpty {
+                        Divider()
 
-                    ForEach(snapshot.recentNotifications) { notification in
-                        Button(notificationMenuItemTitle(for: notification)) {
-                            openNotificationFromMainMenu(notification)
+                        ForEach(snapshot.recentNotifications) { notification in
+                            Button(notificationMenuItemTitle(for: notification)) {
+                                openNotificationFromMainMenu(notification)
+                            }
                         }
+
+                        Divider()
                     }
 
-                    Divider()
-                }
+                    splitCommandButton(title: String(localized: "menu.notifications.show", defaultValue: "Show Notifications"), shortcut: showNotificationsMenuShortcut) {
+                        showNotificationsPopover()
+                    }
 
-                splitCommandButton(title: String(localized: "menu.notifications.show", defaultValue: "Show Notifications"), shortcut: showNotificationsMenuShortcut) {
-                    showNotificationsPopover()
-                }
+                    splitCommandButton(title: String(localized: "menu.notifications.jumpToUnread", defaultValue: "Jump to Latest Unread"), shortcut: jumpToUnreadMenuShortcut) {
+                        appDelegate.jumpToLatestUnread()
+                    }
+                    .disabled(!snapshot.hasUnreadNotifications)
 
-                splitCommandButton(title: String(localized: "menu.notifications.jumpToUnread", defaultValue: "Jump to Latest Unread"), shortcut: jumpToUnreadMenuShortcut) {
-                    appDelegate.jumpToLatestUnread()
-                }
-                .disabled(!snapshot.hasUnreadNotifications)
+                    Button(String(localized: "menu.notifications.markAllRead", defaultValue: "Mark All Read")) {
+                        notificationStore.markAllRead()
+                    }
+                    .disabled(!snapshot.hasUnreadNotifications)
 
-                Button(String(localized: "menu.notifications.markAllRead", defaultValue: "Mark All Read")) {
-                    notificationStore.markAllRead()
+                    Button(String(localized: "menu.notifications.clearAll", defaultValue: "Clear All")) {
+                        notificationStore.clearAll()
+                    }
+                    .disabled(!snapshot.hasNotifications)
                 }
-                .disabled(!snapshot.hasUnreadNotifications)
-
-                Button(String(localized: "menu.notifications.clearAll", defaultValue: "Clear All")) {
-                    notificationStore.clearAll()
-                }
-                .disabled(!snapshot.hasNotifications)
-            }
 
 #if DEBUG
-            CommandMenu("Debug") {
-                Button("New Tab With Lorem Search Text") {
-                    appDelegate.openDebugLoremTab(nil)
-                }
-
-                Button("New Tab With Large Scrollback") {
-                    appDelegate.openDebugScrollbackTab(nil)
-                }
-
-                Button("Open Workspaces for All Workspace Colors") {
-                    appDelegate.openDebugColorComparisonWorkspaces(nil)
-                }
-
-                Button(
-                    String(
-                        localized: "debug.menu.openStressWorkspacesWithLoadedSurfaces",
-                        defaultValue: "Open Stress Workspaces and Load All Terminals"
-                    )
-                ) {
-                    appDelegate.openDebugStressWorkspacesWithLoadedSurfaces(nil)
-                }
-
-                Divider()
-                Menu("Debug Windows") {
-                    Button("Debug Window Controls…") {
-                        DebugWindowControlsWindowController.shared.show()
+                CommandMenu("Debug") {
+                    Button("New Tab With Lorem Search Text") {
+                        appDelegate.openDebugLoremTab(nil)
                     }
 
-                    Button("Browser Import Hint Debug…") {
-                        BrowserImportHintDebugWindowController.shared.show()
+                    Button("New Tab With Large Scrollback") {
+                        appDelegate.openDebugScrollbackTab(nil)
                     }
+
+                    Button("Open Workspaces for All Workspace Colors") {
+                        appDelegate.openDebugColorComparisonWorkspaces(nil)
+                    }
+
+                    Button(
+                        String(
+                            localized: "debug.menu.openStressWorkspacesWithLoadedSurfaces",
+                            defaultValue: "Open Stress Workspaces and Load All Terminals"
+                        )
+                    ) {
+                        appDelegate.openDebugStressWorkspacesWithLoadedSurfaces(nil)
+                    }
+
+                    Divider()
+                    Menu("Debug Windows") {
+                        Button("Debug Window Controls…") {
+                            DebugWindowControlsWindowController.shared.show()
+                        }
+
+                        Button("Browser Import Hint Debug…") {
+                            BrowserImportHintDebugWindowController.shared.show()
+                        }
 
                     Button(
                         String(
@@ -703,6 +755,13 @@ struct cmuxApp: App {
                     }
                 }
 
+                splitCommandButton(
+                    title: String(localized: "menu.view.toggleFileExplorer", defaultValue: "Toggle File Explorer"),
+                    shortcut: toggleFileExplorerMenuShortcut
+                ) {
+                    _ = AppDelegate.shared?.toggleFileExplorerInActiveMainWindow()
+                }
+
                 Divider()
 
                 splitCommandButton(title: String(localized: "menu.view.nextSurface", defaultValue: "Next Surface"), shortcut: nextSurfaceMenuShortcut) {
@@ -875,6 +934,13 @@ struct cmuxApp: App {
 
     private var toggleSidebarMenuShortcut: StoredShortcut {
         decodeShortcut(from: toggleSidebarShortcutData, fallback: KeyboardShortcutSettings.Action.toggleSidebar.defaultShortcut)
+    }
+
+    private var toggleFileExplorerMenuShortcut: StoredShortcut {
+        decodeShortcut(
+            from: toggleFileExplorerShortcutData,
+            fallback: KeyboardShortcutSettings.Action.toggleFileExplorer.defaultShortcut
+        )
     }
 
     private var newWorkspaceMenuShortcut: StoredShortcut {

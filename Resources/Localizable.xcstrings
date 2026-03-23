@@ -77797,6 +77797,278 @@
           }
         }
       }
+    },
+    "fileExplorer.action.copyPath": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copy Path"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "パスをコピー"
+          }
+        }
+      }
+    },
+    "fileExplorer.action.open": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "開く"
+          }
+        }
+      }
+    },
+    "fileExplorer.action.refresh": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Refresh"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更新"
+          }
+        }
+      }
+    },
+    "fileExplorer.action.retry": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retry"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "再試行"
+          }
+        }
+      }
+    },
+    "fileExplorer.action.revealInFinder": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reveal in Finder"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Finderで表示"
+          }
+        }
+      }
+    },
+    "fileExplorer.empty.noTerminalDirectories.message": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open a terminal surface or wait for its working directory to be detected."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ターミナルサーフェスを開くか、作業ディレクトリが検出されるまで待ってください。"
+          }
+        }
+      }
+    },
+    "fileExplorer.empty.noTerminalDirectories.title": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No terminal directories yet"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ターミナルディレクトリはまだありません"
+          }
+        }
+      }
+    },
+    "fileExplorer.empty.noWorkspace.message": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Select a workspace to browse its terminal directories."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ワークスペースを選択して、そのターミナルディレクトリを表示します。"
+          }
+        }
+      }
+    },
+    "fileExplorer.empty.noWorkspace.title": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No workspace selected"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ワークスペースが選択されていません"
+          }
+        }
+      }
+    },
+    "fileExplorer.error.waitingForRemoteDaemon": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Waiting for the SSH file explorer to become available."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SSHファイルエクスプローラーが利用可能になるのを待っています。"
+          }
+        }
+      }
+    },
+    "fileExplorer.host.local": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Local"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ローカル"
+          }
+        }
+      }
+    },
+    "fileExplorer.sidebar.title": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Files"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ファイル"
+          }
+        }
+      }
+    },
+    "menu.view.toggleFileExplorer": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Toggle File Explorer"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ファイルエクスプローラーを切り替え"
+          }
+        }
+      }
+    },
+    "shortcut.toggleFileExplorer.label": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Toggle File Explorer"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ファイルエクスプローラーを切替"
+          }
+        }
+      }
+    },
+    "titlebar.fileExplorer.accessibilityLabel": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Toggle File Explorer"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ファイルエクスプローラーを切り替え"
+          }
+        }
+      }
+    },
+    "titlebar.fileExplorer.tooltip": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show or hide the file explorer"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ファイルエクスプローラーの表示を切り替えます"
+          }
+        }
+      }
     }
   }
 }

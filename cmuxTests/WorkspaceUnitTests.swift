@@ -62,6 +62,18 @@ final class SidebarSelectedWorkspaceColorTests: XCTestCase {
 
 
 final class WorkspaceRenameShortcutDefaultsTests: XCTestCase {
+    func testToggleFileExplorerShortcutDefaultsAndMetadata() {
+        XCTAssertEqual(KeyboardShortcutSettings.Action.toggleFileExplorer.label, "Toggle File Explorer")
+        XCTAssertEqual(KeyboardShortcutSettings.Action.toggleFileExplorer.defaultsKey, "shortcut.toggleFileExplorer")
+
+        let shortcut = KeyboardShortcutSettings.Action.toggleFileExplorer.defaultShortcut
+        XCTAssertEqual(shortcut.key, "e")
+        XCTAssertTrue(shortcut.command)
+        XCTAssertTrue(shortcut.shift)
+        XCTAssertFalse(shortcut.option)
+        XCTAssertFalse(shortcut.control)
+    }
+
     func testRenameTabShortcutDefaultsAndMetadata() {
         XCTAssertEqual(KeyboardShortcutSettings.Action.renameTab.label, "Rename Tab")
         XCTAssertEqual(KeyboardShortcutSettings.Action.renameTab.defaultsKey, "shortcut.renameTab")

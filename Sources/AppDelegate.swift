@@ -1951,6 +1951,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         let windowId: UUID
         let tabManager: TabManager
         let sidebarState: SidebarState
+        let fileExplorerState: FileExplorerSidebarState
         let sidebarSelectionState: SidebarSelectionState
         weak var window: NSWindow?
 
@@ -1958,12 +1959,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
             windowId: UUID,
             tabManager: TabManager,
             sidebarState: SidebarState,
+            fileExplorerState: FileExplorerSidebarState,
             sidebarSelectionState: SidebarSelectionState,
             window: NSWindow?
         ) {
             self.windowId = windowId
             self.tabManager = tabManager
             self.sidebarState = sidebarState
+            self.fileExplorerState = fileExplorerState
             self.sidebarSelectionState = sidebarSelectionState
             self.window = window
         }
@@ -1999,6 +2002,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     weak var tabManager: TabManager?
     weak var notificationStore: TerminalNotificationStore?
     weak var sidebarState: SidebarState?
+    weak var fileExplorerState: FileExplorerSidebarState?
     weak var fullscreenControlsViewModel: TitlebarControlsViewModel?
     weak var sidebarSelectionState: SidebarSelectionState?
     var shortcutLayoutCharacterProvider: (UInt16, NSEvent.ModifierFlags) -> String? = KeyboardLayout.character(forKeyCode:modifierFlags:)
@@ -2240,6 +2244,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     func applicationDidFinishLaunching(_ notification: Notification) {
         let env = ProcessInfo.processInfo.environment
         let isRunningUnderXCTest = isRunningUnderXCTest(env)
+        let isRunningUnderXCTestHost = SessionRestorePolicy.isRunningUnderXCTestHost(environment: env)
+        let isRunningUnderUITestApp = SessionRestorePolicy.isRunningUnderUITestApp(environment: env)
         let telemetryEnabled = TelemetrySettings.enabledForCurrentLaunch
 
         DistributedNotificationCenter.default().addObserver(
@@ -2332,7 +2338,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
             syncMenuBarExtraVisibility()
             updateController.startUpdaterIfNeeded()
         }
-        titlebarAccessoryController.start()
+        if !isRunningUnderXCTest {
+            titlebarAccessoryController.start()
+        }
         windowDecorationsController.start()
         installMainWindowKeyObserver()
         refreshGhosttyGotoSplitShortcuts()
@@ -2364,7 +2372,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
 
         // In UI tests, `WindowGroup` occasionally fails to materialize a window quickly on the VM.
         // If there are no windows shortly after launch, force-create one so XCUITest can proceed.
-        if isRunningUnderXCTest {
+        if isRunningUnderUITestApp {
             if let rawVariant = env["CMUX_UI_TEST_BROWSER_IMPORT_HINT_VARIANT"] {
                 UserDefaults.standard.set(
                     BrowserImportHintSettings.variant(for: rawVariant).rawValue,
@@ -2411,6 +2419,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
                     BrowserDataImportCoordinator.shared.presentImportDialog()
                 }
             }
+        }
+
+        if isRunningUnderXCTestHost {
+#if DEBUG
+            writeUITestDiagnosticsIfNeeded(stage: "unitTestHostDidFinishLaunching")
+#endif
         }
 #endif
     }
@@ -2666,10 +2680,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         _ = saveSessionSnapshot(includeScrollback: true, removeWhenEmpty: false)
     }
 
-    func configure(tabManager: TabManager, notificationStore: TerminalNotificationStore, sidebarState: SidebarState) {
+    func configure(
+        tabManager: TabManager,
+        notificationStore: TerminalNotificationStore,
+        sidebarState: SidebarState,
+        fileExplorerState: FileExplorerSidebarState
+    ) {
         self.tabManager = tabManager
         self.notificationStore = notificationStore
         self.sidebarState = sidebarState
+        self.fileExplorerState = fileExplorerState
         disableSuddenTerminationIfNeeded()
         installLifecycleSnapshotObserversIfNeeded()
         prepareStartupSessionSnapshotIfNeeded()
@@ -2913,6 +2933,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         context.sidebarState.isVisible = snapshot.sidebar.isVisible
         context.sidebarState.persistedWidth = CGFloat(
             SessionPersistencePolicy.sanitizedSidebarWidth(snapshot.sidebar.width)
+        )
+        context.fileExplorerState.isVisible = snapshot.fileExplorer?.isVisible ?? false
+        context.fileExplorerState.persistedWidth = CGFloat(
+            SessionPersistencePolicy.sanitizedFileExplorerWidth(snapshot.fileExplorer?.width)
         )
         context.sidebarSelectionState.selection = snapshot.sidebar.selection.sidebarSelection
 
@@ -3356,6 +3380,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
             hasher.combine(
                 Int(SessionPersistencePolicy.sanitizedSidebarWidth(Double(context.sidebarState.persistedWidth)).rounded())
             )
+            hasher.combine(context.fileExplorerState.isVisible)
+            hasher.combine(
+                Int(SessionPersistencePolicy.sanitizedFileExplorerWidth(Double(context.fileExplorerState.persistedWidth)).rounded())
+            )
 
             switch context.sidebarSelectionState.selection {
             case .tabs:
@@ -3661,6 +3689,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
                         isVisible: context.sidebarState.isVisible,
                         selection: SessionSidebarSelection(selection: context.sidebarSelectionState.selection),
                         width: SessionPersistencePolicy.sanitizedSidebarWidth(Double(context.sidebarState.persistedWidth))
+                    ),
+                    fileExplorer: SessionFileExplorerSnapshot(
+                        isVisible: context.fileExplorerState.isVisible,
+                        width: SessionPersistencePolicy.sanitizedFileExplorerWidth(Double(context.fileExplorerState.persistedWidth))
                     )
                 )
             }
@@ -3732,6 +3764,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         windowId: UUID,
         tabManager: TabManager,
         sidebarState: SidebarState,
+        fileExplorerState: FileExplorerSidebarState = FileExplorerSidebarState(),
         sidebarSelectionState: SidebarSelectionState
     ) {
         tabManager.window = window
@@ -3750,6 +3783,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
                 windowId: windowId,
                 tabManager: tabManager,
                 sidebarState: sidebarState,
+                fileExplorerState: fileExplorerState,
                 sidebarSelectionState: sidebarSelectionState,
                 window: window
             )
@@ -5002,11 +5036,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
             if let nextContext = mainWindowContexts.values.first(where: { resolvedWindow(for: $0) != nil }) {
                 tabManager = nextContext.tabManager
                 sidebarState = nextContext.sidebarState
+                fileExplorerState = nextContext.fileExplorerState
                 sidebarSelectionState = nextContext.sidebarSelectionState
                 TerminalController.shared.setActiveTabManager(nextContext.tabManager)
             } else {
                 tabManager = nil
                 sidebarState = nil
+                fileExplorerState = nil
                 sidebarSelectionState = nil
                 TerminalController.shared.setActiveTabManager(nil)
             }
@@ -5218,6 +5254,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         let alreadyActive =
             tabManager === context.tabManager
             && sidebarState === context.sidebarState
+            && fileExplorerState === context.fileExplorerState
             && sidebarSelectionState === context.sidebarSelectionState
         if alreadyActive {
 #if DEBUG
@@ -5232,6 +5269,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         } else {
             tabManager = context.tabManager
             sidebarState = context.sidebarState
+            fileExplorerState = context.fileExplorerState
             sidebarSelectionState = context.sidebarSelectionState
             TerminalController.shared.setActiveTabManager(context.tabManager)
         }
@@ -5353,8 +5391,50 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         return false
     }
 
+    @discardableResult
+    func toggleFileExplorerInActiveMainWindow() -> Bool {
+        if let activeManager = tabManager,
+           let activeContext = mainWindowContexts.values.first(where: { $0.tabManager === activeManager }) {
+            if let window = activeContext.window ?? windowForMainWindowId(activeContext.windowId) {
+                setActiveMainWindow(window)
+            }
+            activeContext.fileExplorerState.toggle()
+            return true
+        }
+        if let keyContext = contextForMainWindow(NSApp.keyWindow) {
+            if let window = keyContext.window ?? windowForMainWindowId(keyContext.windowId) {
+                setActiveMainWindow(window)
+            }
+            keyContext.fileExplorerState.toggle()
+            return true
+        }
+        if let mainContext = contextForMainWindow(NSApp.mainWindow) {
+            if let window = mainContext.window ?? windowForMainWindowId(mainContext.windowId) {
+                setActiveMainWindow(window)
+            }
+            mainContext.fileExplorerState.toggle()
+            return true
+        }
+        if let fallbackContext = mainWindowContexts.values.first {
+            if let window = fallbackContext.window ?? windowForMainWindowId(fallbackContext.windowId) {
+                setActiveMainWindow(window)
+            }
+            fallbackContext.fileExplorerState.toggle()
+            return true
+        }
+        if let fileExplorerState {
+            fileExplorerState.toggle()
+            return true
+        }
+        return false
+    }
+
     func sidebarVisibility(windowId: UUID) -> Bool? {
         mainWindowContexts.values.first(where: { $0.windowId == windowId })?.sidebarState.isVisible
+    }
+
+    func fileExplorerVisibility(windowId: UUID) -> Bool? {
+        mainWindowContexts.values.first(where: { $0.windowId == windowId })?.fileExplorerState.isVisible
     }
 
     @objc func openNewMainWindow(_ sender: Any?) {
@@ -5741,6 +5821,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         let alreadyActive =
             tabManager === context.tabManager
             && sidebarState === context.sidebarState
+            && fileExplorerState === context.fileExplorerState
             && sidebarSelectionState === context.sidebarSelectionState
         if alreadyActive { return true }
 
@@ -5749,6 +5830,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         } else {
             tabManager = context.tabManager
             sidebarState = context.sidebarState
+            fileExplorerState = context.fileExplorerState
             sidebarSelectionState = context.sidebarSelectionState
             TerminalController.shared.setActiveTabManager(context.tabManager)
         }
@@ -5779,6 +5861,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
             isVisible: sessionWindowSnapshot?.sidebar.isVisible ?? true,
             persistedWidth: CGFloat(sidebarWidth)
         )
+        let fileExplorerWidth = sessionWindowSnapshot?.fileExplorer?.width
+            .map(SessionPersistencePolicy.sanitizedFileExplorerWidth)
+            ?? SessionPersistencePolicy.defaultFileExplorerWidth
+        let fileExplorerState = FileExplorerSidebarState(
+            isVisible: sessionWindowSnapshot?.fileExplorer?.isVisible ?? false,
+            persistedWidth: CGFloat(fileExplorerWidth)
+        )
         let sidebarSelectionState = SidebarSelectionState(
             selection: sessionWindowSnapshot?.sidebar.selection.sidebarSelection ?? .tabs
         )
@@ -5788,6 +5877,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
             .environmentObject(tabManager)
             .environmentObject(notificationStore)
             .environmentObject(sidebarState)
+            .environmentObject(fileExplorerState)
             .environmentObject(sidebarSelectionState)
 
         let window = NSWindow(
@@ -5799,6 +5889,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         window.title = ""
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
+        window.isRestorable = false
         window.isMovableByWindowBackground = false
         window.isMovable = false
         let restoredFrame = resolvedWindowFrame(from: sessionWindowSnapshot)
@@ -5827,6 +5918,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
             windowId: windowId,
             tabManager: tabManager,
             sidebarState: sidebarState,
+            fileExplorerState: fileExplorerState,
             sidebarSelectionState: sidebarSelectionState
         )
         installFileDropOverlay(on: window, tabManager: tabManager)
@@ -8536,6 +8628,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
 #endif
 
     func attachUpdateAccessory(to window: NSWindow) {
+        guard !isRunningUnderXCTestCached else { return }
         titlebarAccessoryController.start()
         titlebarAccessoryController.attach(to: window)
     }
@@ -9262,6 +9355,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         // Primary UI shortcuts
         if matchShortcut(event: event, shortcut: KeyboardShortcutSettings.shortcut(for: .toggleSidebar)) {
             _ = toggleSidebarInActiveMainWindow()
+            return true
+        }
+
+        if matchShortcut(event: event, shortcut: KeyboardShortcutSettings.shortcut(for: .toggleFileExplorer)) {
+            _ = toggleFileExplorerInActiveMainWindow()
             return true
         }
 
@@ -10995,6 +11093,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
 #endif
         tabManager = context.tabManager
         sidebarState = context.sidebarState
+        fileExplorerState = context.fileExplorerState
         sidebarSelectionState = context.sidebarSelectionState
         TerminalController.shared.setActiveTabManager(context.tabManager)
 #if DEBUG
@@ -11037,11 +11136,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
             if let nextContext {
                 tabManager = nextContext.tabManager
                 sidebarState = nextContext.sidebarState
+                fileExplorerState = nextContext.fileExplorerState
                 sidebarSelectionState = nextContext.sidebarSelectionState
                 TerminalController.shared.setActiveTabManager(nextContext.tabManager)
             } else {
                 tabManager = nil
                 sidebarState = nil
+                fileExplorerState = nil
                 sidebarSelectionState = nil
                 TerminalController.shared.setActiveTabManager(nil)
             }

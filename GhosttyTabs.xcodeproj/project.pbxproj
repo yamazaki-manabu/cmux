@@ -10,6 +10,19 @@
 			A5001001 /* cmuxApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5001011 /* cmuxApp.swift */; };
 			A5001002 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5001012 /* ContentView.swift */; };
 			E62155868BB29FEB5DAAAF25 /* SidebarSelectionState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AD52285508B1D6A9875E7B3 /* SidebarSelectionState.swift */; };
+			A5011700A1B2C3D4E5F60719 /* FileExplorerSidebarState.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5011701A1B2C3D4E5F60719 /* FileExplorerSidebarState.swift */; };
+			A5011702A1B2C3D4E5F60719 /* FileExplorerModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5011703A1B2C3D4E5F60719 /* FileExplorerModels.swift */; };
+			A5011704A1B2C3D4E5F60719 /* FileExplorerRootResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5011705A1B2C3D4E5F60719 /* FileExplorerRootResolver.swift */; };
+			A5011706A1B2C3D4E5F60719 /* FileExplorerRootResolverTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5011707A1B2C3D4E5F60719 /* FileExplorerRootResolverTests.swift */; };
+			A5011708A1B2C3D4E5F60719 /* FileExplorerProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5011709A1B2C3D4E5F60719 /* FileExplorerProvider.swift */; };
+			A501170AA1B2C3D4E5F60719 /* LocalFileExplorerProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = A501170BA1B2C3D4E5F60719 /* LocalFileExplorerProvider.swift */; };
+			A501170CA1B2C3D4E5F60719 /* FileExplorerStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A501170DA1B2C3D4E5F60719 /* FileExplorerStore.swift */; };
+			A501170EA1B2C3D4E5F60719 /* FileExplorerStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A501170FA1B2C3D4E5F60719 /* FileExplorerStoreTests.swift */; };
+			A5011710A1B2C3D4E5F60719 /* RemoteFileExplorerProviderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5011711A1B2C3D4E5F60719 /* RemoteFileExplorerProviderTests.swift */; };
+			A5011712A1B2C3D4E5F60719 /* RemoteFileExplorerProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5011713A1B2C3D4E5F60719 /* RemoteFileExplorerProvider.swift */; };
+			A5011714A1B2C3D4E5F60719 /* FileExplorerSidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5011715A1B2C3D4E5F60719 /* FileExplorerSidebarView.swift */; };
+			A5011716A1B2C3D4E5F60719 /* FileExplorerOutlineView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5011717A1B2C3D4E5F60719 /* FileExplorerOutlineView.swift */; };
+			A5011718A1B2C3D4E5F60719 /* FileExplorerSidebarUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5011719A1B2C3D4E5F60719 /* FileExplorerSidebarUITests.swift */; };
 			B9000018A1B2C3D4E5F60719 /* WindowDragHandleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9000017A1B2C3D4E5F60719 /* WindowDragHandleView.swift */; };
 			A5001003 /* TabManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5001013 /* TabManager.swift */; };
 			A5001004 /* GhosttyConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5001014 /* GhosttyConfig.swift */; };
@@ -182,6 +195,19 @@
 			A5001011 /* cmuxApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = cmuxApp.swift; sourceTree = "<group>"; };
 			A5001012 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 			9AD52285508B1D6A9875E7B3 /* SidebarSelectionState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarSelectionState.swift; sourceTree = "<group>"; };
+			A5011701A1B2C3D4E5F60719 /* FileExplorerSidebarState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileExplorer/FileExplorerSidebarState.swift; sourceTree = "<group>"; };
+			A5011703A1B2C3D4E5F60719 /* FileExplorerModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileExplorer/FileExplorerModels.swift; sourceTree = "<group>"; };
+			A5011705A1B2C3D4E5F60719 /* FileExplorerRootResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileExplorer/FileExplorerRootResolver.swift; sourceTree = "<group>"; };
+			A5011707A1B2C3D4E5F60719 /* FileExplorerRootResolverTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileExplorerRootResolverTests.swift; sourceTree = "<group>"; };
+			A5011709A1B2C3D4E5F60719 /* FileExplorerProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileExplorer/FileExplorerProvider.swift; sourceTree = "<group>"; };
+			A501170BA1B2C3D4E5F60719 /* LocalFileExplorerProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileExplorer/LocalFileExplorerProvider.swift; sourceTree = "<group>"; };
+			A501170DA1B2C3D4E5F60719 /* FileExplorerStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileExplorer/FileExplorerStore.swift; sourceTree = "<group>"; };
+			A501170FA1B2C3D4E5F60719 /* FileExplorerStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileExplorerStoreTests.swift; sourceTree = "<group>"; };
+			A5011711A1B2C3D4E5F60719 /* RemoteFileExplorerProviderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteFileExplorerProviderTests.swift; sourceTree = "<group>"; };
+			A5011713A1B2C3D4E5F60719 /* RemoteFileExplorerProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileExplorer/RemoteFileExplorerProvider.swift; sourceTree = "<group>"; };
+			A5011715A1B2C3D4E5F60719 /* FileExplorerSidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileExplorer/FileExplorerSidebarView.swift; sourceTree = "<group>"; };
+			A5011717A1B2C3D4E5F60719 /* FileExplorerOutlineView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileExplorer/FileExplorerOutlineView.swift; sourceTree = "<group>"; };
+			A5011719A1B2C3D4E5F60719 /* FileExplorerSidebarUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileExplorerSidebarUITests.swift; sourceTree = "<group>"; };
 			B9000017A1B2C3D4E5F60719 /* WindowDragHandleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowDragHandleView.swift; sourceTree = "<group>"; };
 			A5001013 /* TabManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabManager.swift; sourceTree = "<group>"; };
 			A5001014 /* GhosttyConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GhosttyConfig.swift; sourceTree = "<group>"; };
@@ -405,6 +431,15 @@
 					A5001011 /* cmuxApp.swift */,
 					A5001012 /* ContentView.swift */,
 					9AD52285508B1D6A9875E7B3 /* SidebarSelectionState.swift */,
+					A5011701A1B2C3D4E5F60719 /* FileExplorerSidebarState.swift */,
+					A5011703A1B2C3D4E5F60719 /* FileExplorerModels.swift */,
+					A5011705A1B2C3D4E5F60719 /* FileExplorerRootResolver.swift */,
+					A5011709A1B2C3D4E5F60719 /* FileExplorerProvider.swift */,
+					A501170BA1B2C3D4E5F60719 /* LocalFileExplorerProvider.swift */,
+					A501170DA1B2C3D4E5F60719 /* FileExplorerStore.swift */,
+					A5011713A1B2C3D4E5F60719 /* RemoteFileExplorerProvider.swift */,
+					A5011715A1B2C3D4E5F60719 /* FileExplorerSidebarView.swift */,
+					A5011717A1B2C3D4E5F60719 /* FileExplorerOutlineView.swift */,
 					B9000017A1B2C3D4E5F60719 /* WindowDragHandleView.swift */,
 					A50012F0 /* Backport.swift */,
 					A50012F2 /* KeyboardShortcutSettings.swift */,
@@ -509,6 +544,7 @@
 							D0E0F0B1A1B2C3D4E5F60718 /* BrowserPaneNavigationKeybindUITests.swift */,
 							D0E0F0B3A1B2C3D4E5F60718 /* BrowserOmnibarSuggestionsUITests.swift */,
 							FB100001A1B2C3D4E5F60718 /* BrowserImportProfilesUITests.swift */,
+							A5011719A1B2C3D4E5F60719 /* FileExplorerSidebarUITests.swift */,
 							C0B4D9B1A1B2C3D4E5F60718 /* UpdatePillUITests.swift */,
 						E1000001A1B2C3D4E5F60718 /* MenuKeyEquivalentRoutingUITests.swift */,
 					);
@@ -524,6 +560,9 @@
 					F5000001A1B2C3D4E5F60718 /* SessionPersistenceTests.swift */,
 					FA100001A1B2C3D4E5F60718 /* BrowserImportMappingTests.swift */,
 					F6000001A1B2C3D4E5F60718 /* AppDelegateShortcutRoutingTests.swift */,
+					A5011707A1B2C3D4E5F60719 /* FileExplorerRootResolverTests.swift */,
+					A501170FA1B2C3D4E5F60719 /* FileExplorerStoreTests.swift */,
+					A5011711A1B2C3D4E5F60719 /* RemoteFileExplorerProviderTests.swift */,
 					F6100001A1B2C3D4E5F60718 /* WorkspaceRemoteConnectionTests.swift */,
 					F7000001A1B2C3D4E5F60718 /* WorkspaceContentViewVisibilityTests.swift */,
 					F8000001A1B2C3D4E5F60718 /* SocketControlPasswordStoreTests.swift */,
@@ -700,6 +739,15 @@
 					A5001001 /* cmuxApp.swift in Sources */,
 					A5001002 /* ContentView.swift in Sources */,
 					E62155868BB29FEB5DAAAF25 /* SidebarSelectionState.swift in Sources */,
+					A5011700A1B2C3D4E5F60719 /* FileExplorerSidebarState.swift in Sources */,
+					A5011702A1B2C3D4E5F60719 /* FileExplorerModels.swift in Sources */,
+					A5011704A1B2C3D4E5F60719 /* FileExplorerRootResolver.swift in Sources */,
+					A5011708A1B2C3D4E5F60719 /* FileExplorerProvider.swift in Sources */,
+					A501170AA1B2C3D4E5F60719 /* LocalFileExplorerProvider.swift in Sources */,
+					A501170CA1B2C3D4E5F60719 /* FileExplorerStore.swift in Sources */,
+					A5011712A1B2C3D4E5F60719 /* RemoteFileExplorerProvider.swift in Sources */,
+					A5011714A1B2C3D4E5F60719 /* FileExplorerSidebarView.swift in Sources */,
+					A5011716A1B2C3D4E5F60719 /* FileExplorerOutlineView.swift in Sources */,
 					B9000018A1B2C3D4E5F60719 /* WindowDragHandleView.swift in Sources */,
 					A50012F1 /* Backport.swift in Sources */,
 					A50012F3 /* KeyboardShortcutSettings.swift in Sources */,
@@ -772,6 +820,7 @@
 							D0E0F0B0A1B2C3D4E5F60718 /* BrowserPaneNavigationKeybindUITests.swift in Sources */,
 							D0E0F0B2A1B2C3D4E5F60718 /* BrowserOmnibarSuggestionsUITests.swift in Sources */,
 							FB100000A1B2C3D4E5F60718 /* BrowserImportProfilesUITests.swift in Sources */,
+							A5011718A1B2C3D4E5F60719 /* FileExplorerSidebarUITests.swift in Sources */,
 							C0B4D9B0A1B2C3D4E5F60718 /* UpdatePillUITests.swift in Sources */,
 						E1000000A1B2C3D4E5F60718 /* MenuKeyEquivalentRoutingUITests.swift in Sources */,
 					);
@@ -787,6 +836,9 @@
 					F5000000A1B2C3D4E5F60718 /* SessionPersistenceTests.swift in Sources */,
 					FA100000A1B2C3D4E5F60718 /* BrowserImportMappingTests.swift in Sources */,
 					F6000000A1B2C3D4E5F60718 /* AppDelegateShortcutRoutingTests.swift in Sources */,
+					A5011706A1B2C3D4E5F60719 /* FileExplorerRootResolverTests.swift in Sources */,
+					A501170EA1B2C3D4E5F60719 /* FileExplorerStoreTests.swift in Sources */,
+					A5011710A1B2C3D4E5F60719 /* RemoteFileExplorerProviderTests.swift in Sources */,
 					F6100000A1B2C3D4E5F60718 /* WorkspaceRemoteConnectionTests.swift in Sources */,
 					F7000000A1B2C3D4E5F60718 /* WorkspaceContentViewVisibilityTests.swift in Sources */,
 					F8000000A1B2C3D4E5F60718 /* SocketControlPasswordStoreTests.swift in Sources */,

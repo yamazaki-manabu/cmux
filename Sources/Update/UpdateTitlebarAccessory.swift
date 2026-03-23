@@ -254,6 +254,7 @@ struct TitlebarControlsView: View {
     @ObservedObject var notificationStore: TerminalNotificationStore
     @ObservedObject var viewModel: TitlebarControlsViewModel
     let onToggleSidebar: () -> Void
+    let onToggleFileExplorer: () -> Void
     let onToggleNotifications: () -> Void
     let onNewTab: () -> Void
     let visibilityMode: TitlebarControlsVisibilityMode
@@ -270,6 +271,7 @@ struct TitlebarControlsView: View {
 
     private enum HintSlot: Int, CaseIterable {
         case toggleSidebar
+        case toggleFileExplorer
         case showNotifications
         case newTab
 
@@ -277,6 +279,8 @@ struct TitlebarControlsView: View {
             switch self {
             case .toggleSidebar:
                 return .toggleSidebar
+            case .toggleFileExplorer:
+                return .toggleFileExplorer
             case .showNotifications:
                 return .showNotifications
             case .newTab:
@@ -368,6 +372,22 @@ struct TitlebarControlsView: View {
             .accessibilityIdentifier("titlebarControl.toggleSidebar")
             .accessibilityLabel(String(localized: "titlebar.sidebar.accessibilityLabel", defaultValue: "Toggle Sidebar"))
             .safeHelp(KeyboardShortcutSettings.Action.toggleSidebar.tooltip(String(localized: "titlebar.sidebar.tooltip", defaultValue: "Show or hide the sidebar")))
+
+            TitlebarControlButton(config: config, action: {
+#if DEBUG
+                dlog("titlebar.toggleFileExplorer")
+#endif
+                onToggleFileExplorer()
+            }) {
+                iconLabel(systemName: "sidebar.right", config: config)
+            }
+            .accessibilityIdentifier("titlebarControl.toggleFileExplorer")
+            .accessibilityLabel(String(localized: "titlebar.fileExplorer.accessibilityLabel", defaultValue: "Toggle File Explorer"))
+            .safeHelp(
+                KeyboardShortcutSettings.Action.toggleFileExplorer.tooltip(
+                    String(localized: "titlebar.fileExplorer.tooltip", defaultValue: "Show or hide the file explorer")
+                )
+            )
 
             TitlebarControlButton(config: config, action: {
                 #if DEBUG
@@ -559,6 +579,7 @@ struct HiddenTitlebarSidebarControlsView: View {
             notificationStore: notificationStore,
             viewModel: viewModel,
             onToggleSidebar: { _ = AppDelegate.shared?.sidebarState?.toggle() },
+            onToggleFileExplorer: { _ = AppDelegate.shared?.toggleFileExplorerInActiveMainWindow() },
             onToggleNotifications: { [viewModel] in
                 AppDelegate.shared?.toggleNotificationsPopover(
                     animated: true,
@@ -788,6 +809,7 @@ final class TitlebarControlsAccessoryViewController: NSTitlebarAccessoryViewCont
     init(notificationStore: TerminalNotificationStore) {
         self.notificationStore = notificationStore
         let toggleSidebar = { _ = AppDelegate.shared?.sidebarState?.toggle() }
+        let toggleFileExplorer = { _ = AppDelegate.shared?.toggleFileExplorerInActiveMainWindow() }
         let toggleNotifications: () -> Void = { _ = AppDelegate.shared?.toggleNotificationsPopover(animated: true) }
         let newTab = { _ = AppDelegate.shared?.tabManager?.addTab() }
 
@@ -796,6 +818,7 @@ final class TitlebarControlsAccessoryViewController: NSTitlebarAccessoryViewCont
                 notificationStore: notificationStore,
                 viewModel: viewModel,
                 onToggleSidebar: toggleSidebar,
+                onToggleFileExplorer: toggleFileExplorer,
                 onToggleNotifications: toggleNotifications,
                 onNewTab: newTab,
                 visibilityMode: .alwaysVisible

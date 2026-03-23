@@ -12,11 +12,16 @@ private let appDelegateLastSurfaceCloseShortcutDefaultsKey = "closeWorkspaceOnLa
 final class AppDelegateShortcutRoutingTests: XCTestCase {
     private var savedShortcutsByAction: [KeyboardShortcutSettings.Action: StoredShortcut] = [:]
     private var actionsWithPersistedShortcut: Set<KeyboardShortcutSettings.Action> = []
+    private var originalLastSurfaceCloseShortcutSetting: Any?
 
     override func setUp() {
         super.setUp()
         // Prevent a single hanging test from consuming the entire CI timeout budget.
         executionTimeAllowance = 30
+        AppDelegate.shared?.debugCloseMainWindowConfirmationHandler = { _ in true }
+        closeAllOpenWindows()
+        originalLastSurfaceCloseShortcutSetting = UserDefaults.standard.object(forKey: appDelegateLastSurfaceCloseShortcutDefaultsKey)
+        UserDefaults.standard.removeObject(forKey: appDelegateLastSurfaceCloseShortcutDefaultsKey)
         actionsWithPersistedShortcut = Set(
             KeyboardShortcutSettings.Action.allCases.filter {
                 UserDefaults.standard.object(forKey: $0.defaultsKey) != nil
@@ -32,9 +37,17 @@ final class AppDelegateShortcutRoutingTests: XCTestCase {
 
     override func tearDown() {
         AppDelegate.shared?.shortcutLayoutCharacterProvider = KeyboardLayout.character(forKeyCode:modifierFlags:)
-        AppDelegate.shared?.debugCloseMainWindowConfirmationHandler = nil
+        AppDelegate.shared?.debugCloseMainWindowConfirmationHandler = { _ in true }
         AppDelegate.shared?.dismissNotificationsPopoverIfShown()
+        closeAllOpenWindows()
+        AppDelegate.shared?.debugCloseMainWindowConfirmationHandler = nil
         RunLoop.main.run(until: Date(timeIntervalSinceNow: 0.05))
+        restoreDefaultsValue(
+            originalLastSurfaceCloseShortcutSetting,
+            forKey: appDelegateLastSurfaceCloseShortcutDefaultsKey,
+            defaults: .standard
+        )
+        originalLastSurfaceCloseShortcutSetting = nil
         for action in KeyboardShortcutSettings.Action.allCases {
             if actionsWithPersistedShortcut.contains(action),
                let savedShortcut = savedShortcutsByAction[action] {
@@ -346,6 +359,82 @@ final class AppDelegateShortcutRoutingTests: XCTestCase {
         }
     }
 
+    func testToggleFileExplorerShortcutUsesActiveMainWindowContext() {
+        guard let appDelegate = AppDelegate.shared else {
+            XCTFail("Expected AppDelegate.shared")
+            return
+        }
+
+        let firstWindowId = appDelegate.createMainWindow()
+        let secondWindowId = appDelegate.createMainWindow()
+
+        defer {
+            closeWindow(withId: firstWindowId)
+            closeWindow(withId: secondWindowId)
+        }
+
+        guard let secondManager = appDelegate.tabManagerFor(windowId: secondWindowId) else {
+            XCTFail("Expected second window context")
+            return
+        }
+
+        appDelegate.tabManager = secondManager
+        XCTAssertEqual(appDelegate.fileExplorerVisibility(windowId: firstWindowId), false)
+        XCTAssertEqual(appDelegate.fileExplorerVisibility(windowId: secondWindowId), false)
+        XCTAssertTrue(appDelegate.toggleFileExplorerInActiveMainWindow())
+        XCTAssertEqual(appDelegate.fileExplorerVisibility(windowId: firstWindowId), false)
+        XCTAssertEqual(appDelegate.fileExplorerVisibility(windowId: secondWindowId), true)
+    }
+
+    func testToggleFileExplorerShortcutUsesEventWindowContextWhenActiveStateIsStale() {
+        guard let appDelegate = AppDelegate.shared else {
+            XCTFail("Expected AppDelegate.shared")
+            return
+        }
+
+        let firstWindowId = appDelegate.createMainWindow()
+        let secondWindowId = appDelegate.createMainWindow()
+
+        defer {
+            closeWindow(withId: firstWindowId)
+            closeWindow(withId: secondWindowId)
+        }
+
+        guard let secondWindow = window(withId: secondWindowId) else {
+            XCTFail("Expected second window")
+            return
+        }
+
+        XCTAssertTrue(appDelegate.focusMainWindow(windowId: firstWindowId))
+        XCTAssertEqual(appDelegate.fileExplorerVisibility(windowId: firstWindowId), false)
+        XCTAssertEqual(appDelegate.fileExplorerVisibility(windowId: secondWindowId), false)
+
+        guard let event = NSEvent.keyEvent(
+            with: .keyDown,
+            location: .zero,
+            modifierFlags: [.command, .shift],
+            timestamp: ProcessInfo.processInfo.systemUptime,
+            windowNumber: secondWindow.windowNumber,
+            context: nil,
+            characters: "E",
+            charactersIgnoringModifiers: "e",
+            isARepeat: false,
+            keyCode: 14
+        ) else {
+            XCTFail("Failed to construct Cmd+Shift+E event")
+            return
+        }
+
+#if DEBUG
+        XCTAssertTrue(appDelegate.debugHandleCustomShortcut(event: event))
+#else
+        XCTFail("debugHandleCustomShortcut is only available in DEBUG")
+#endif
+
+        XCTAssertEqual(appDelegate.fileExplorerVisibility(windowId: firstWindowId), false)
+        XCTAssertEqual(appDelegate.fileExplorerVisibility(windowId: secondWindowId), true)
+    }
+
     func testCmdDigitRoutesToEventWindowWhenActiveManagerIsStale() {
         guard let appDelegate = AppDelegate.shared else {
             XCTFail("Expected AppDelegate.shared")
@@ -652,6 +741,8 @@ final class AppDelegateShortcutRoutingTests: XCTestCase {
             XCTFail("Expected test window")
             return
         }
+        targetWindow.makeKeyAndOrderFront(nil)
+        RunLoop.main.run(until: Date(timeIntervalSinceNow: 0.05))
 
         appDelegate.debugCloseMainWindowConfirmationHandler = { _ in true }
 
@@ -671,9 +762,10 @@ final class AppDelegateShortcutRoutingTests: XCTestCase {
         XCTFail("debugHandleCustomShortcut is only available in DEBUG")
 #endif
 
-        RunLoop.main.run(until: Date(timeIntervalSinceNow: 0.05))
-
-        XCTAssertNil(self.window(withId: windowId), "Confirming Cmd+Ctrl+W should close the window")
+        XCTAssertTrue(
+            waitForWindowToClose(windowId: windowId),
+            "Confirming Cmd+Ctrl+W should close the window"
+        )
     }
 
     // NOTE: This test is skipped in CI via -skip-testing in ci.yml because closing
@@ -697,6 +789,8 @@ final class AppDelegateShortcutRoutingTests: XCTestCase {
             XCTFail("Expected test window and manager")
             return
         }
+        targetWindow.makeKeyAndOrderFront(nil)
+        RunLoop.main.run(until: Date(timeIntervalSinceNow: 0.05))
 
         XCTAssertEqual(manager.tabs.count, 1)
         XCTAssertEqual(manager.tabs[0].panels.count, 1)
@@ -717,10 +811,8 @@ final class AppDelegateShortcutRoutingTests: XCTestCase {
         XCTFail("debugHandleCustomShortcut is only available in DEBUG")
 #endif
 
-        RunLoop.main.run(until: Date(timeIntervalSinceNow: 0.05))
-
-        XCTAssertNil(
-            self.window(withId: windowId),
+        XCTAssertTrue(
+            waitForWindowToClose(windowId: windowId, timeout: 5.0),
             "Cmd+W on the last surface in the last workspace should close the window"
         )
     }
@@ -752,6 +844,8 @@ final class AppDelegateShortcutRoutingTests: XCTestCase {
             XCTFail("Expected test window, manager, workspace, and focused panel")
             return
         }
+        targetWindow.makeKeyAndOrderFront(nil)
+        RunLoop.main.run(until: Date(timeIntervalSinceNow: 0.05))
 
         guard let event = makeKeyDownEvent(
             key: "w",
@@ -769,17 +863,18 @@ final class AppDelegateShortcutRoutingTests: XCTestCase {
         XCTFail("debugHandleCustomShortcut is only available in DEBUG")
 #endif
 
-        RunLoop.main.run(until: Date(timeIntervalSinceNow: 0.05))
-
-        XCTAssertNotNil(
-            self.window(withId: windowId),
-            "Cmd+W should keep the window open when the keep-workspace-open preference is enabled"
+        XCTAssertTrue(
+            waitForCondition(timeout: 3.0) {
+                self.window(withId: windowId) != nil
+                    && manager.tabs.count == 1
+                    && manager.selectedTabId == workspace.id
+                    && workspace.panels[initialPanelId] == nil
+                    && workspace.panels.count == 1
+                    && workspace.focusedPanelId != nil
+                    && workspace.focusedPanelId != initialPanelId
+            },
+            "Cmd+W should keep the window open and replace the last surface when the keep-workspace-open preference is enabled"
         )
-        XCTAssertEqual(manager.tabs.count, 1)
-        XCTAssertEqual(manager.selectedTabId, workspace.id)
-        XCTAssertNil(workspace.panels[initialPanelId])
-        XCTAssertEqual(workspace.panels.count, 1)
-        XCTAssertNotEqual(workspace.focusedPanelId, initialPanelId)
     }
 
     func testCmdWClosesAuxiliaryWindowInsteadOfMainTerminalPanel() throws {
@@ -3143,7 +3238,33 @@ final class AppDelegateShortcutRoutingTests: XCTestCase {
     private func closeWindow(withId windowId: UUID) {
         guard let window = window(withId: windowId) else { return }
         window.performClose(nil)
+        _ = waitForWindowToClose(windowId: windowId)
+    }
+
+    private func closeAllOpenWindows() {
+        for window in NSApp.windows {
+            window.performClose(nil)
+        }
         RunLoop.main.run(until: Date(timeIntervalSinceNow: 0.05))
+    }
+
+    @discardableResult
+    private func waitForCondition(timeout: TimeInterval = 1.0, pollInterval: TimeInterval = 0.05, condition: () -> Bool) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if condition() {
+                return true
+            }
+            RunLoop.main.run(until: Date(timeIntervalSinceNow: pollInterval))
+        }
+        return condition()
+    }
+
+    @discardableResult
+    private func waitForWindowToClose(windowId: UUID, timeout: TimeInterval = 1.0) -> Bool {
+        waitForCondition(timeout: timeout) {
+            window(withId: windowId) == nil
+        }
     }
 
     private func restoreDefaultsValue(_ value: Any?, forKey key: String, defaults: UserDefaults) {

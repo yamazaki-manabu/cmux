@@ -788,9 +788,10 @@ final class WorkspaceRemoteDaemonPendingCallRegistry {
     }
 }
 
-private final class WorkspaceRemoteDaemonRPCClient {
+final class WorkspaceRemoteDaemonRPCClient {
     private static let maxStdoutBufferBytes = 256 * 1024
     static let requiredProxyStreamCapability = "proxy.stream.push"
+    static let fsListCapability = "fs.list"
 
     enum StreamEvent {
         case data(Data)
@@ -973,6 +974,15 @@ private final class WorkspaceRemoteDaemonRPCClient {
             params: ["stream_id": streamID],
             timeout: 4.0
         )
+    }
+
+    func listDirectory(path: String) throws -> [[String: Any]] {
+        let result = try call(
+            method: "fs.list",
+            params: ["path": path],
+            timeout: 8.0
+        )
+        return (result["entries"] as? [[String: Any]]) ?? []
     }
 
     private func call(method: String, params: [String: Any], timeout: TimeInterval) throws -> [String: Any] {
@@ -4633,7 +4643,7 @@ struct WorkspaceRemoteDaemonStatus: Equatable {
     }
 }
 
-struct WorkspaceRemoteConfiguration: Equatable {
+struct WorkspaceRemoteConfiguration: Equatable, Sendable {
     let destination: String
     let port: Int?
     let identityFile: String?
@@ -4679,6 +4689,11 @@ struct WorkspaceRemoteConfiguration: Equatable {
             .map(String.init)?
             .lowercased()
     }
+}
+
+struct FileExplorerRemoteContext: Equatable, Sendable {
+    let configuration: WorkspaceRemoteConfiguration
+    let remotePath: String?
 }
 
 enum SidebarPullRequestStatus: String {
@@ -4795,7 +4810,7 @@ enum SidebarBranchOrdering {
         return homeDirectory
     }
 
-    fileprivate static func inferredRemoteHomeDirectory(
+    static func inferredRemoteHomeDirectory(
         from directories: [String],
         fallbackDirectory: String?
     ) -> String? {
@@ -4845,7 +4860,7 @@ enum SidebarBranchOrdering {
         return NSString(string: homeDirectory).appendingPathComponent(relativePath)
     }
 
-    fileprivate static func canonicalDirectoryKey(
+    static func canonicalDirectoryKey(
         _ directory: String?,
         homeDirectoryForTildeExpansion: String?
     ) -> String? {
@@ -6370,6 +6385,72 @@ final class Workspace: Identifiable, ObservableObject {
 
     func sidebarDirectoriesInDisplayOrder() -> [String] {
         sidebarDirectoriesInDisplayOrder(orderedPanelIds: sidebarOrderedPanelIds())
+    }
+
+    private func fileExplorerOrderedTerminalPanelIds() -> [UUID] {
+        sidebarOrderedPanelIds().filter { terminalPanel(for: $0) != nil }
+    }
+
+    private func fileExplorerHostScope() -> FileExplorerHostScope {
+        guard let remoteConfiguration else { return .local }
+        return .ssh(
+            destination: remoteConfiguration.destination,
+            port: remoteConfiguration.port,
+            identityFingerprint: remoteConfiguration.proxyBrokerTransportKey
+        )
+    }
+
+    private func fileExplorerResolvedPanelDirectories(orderedPanelIds: [UUID]) -> [UUID: String] {
+        var resolved: [UUID: String] = [:]
+        for panelId in orderedPanelIds where terminalPanel(for: panelId) != nil {
+            if let directory = sidebarResolvedDirectory(for: panelId) {
+                resolved[panelId] = directory
+            }
+        }
+        return resolved
+    }
+
+    func fileExplorerRootInputsInDisplayOrder(orderedPanelIds: [UUID]) -> [FileExplorerRootInput] {
+        let terminalPanelIds = orderedPanelIds.filter { terminalPanel(for: $0) != nil }
+        let resolvedDirectories = fileExplorerResolvedPanelDirectories(orderedPanelIds: terminalPanelIds)
+        let hostScope = fileExplorerHostScope()
+
+        return terminalPanelIds.compactMap { panelId in
+            guard let directory = resolvedDirectories[panelId] else { return nil }
+            return FileExplorerRootInput(
+                panelID: panelId,
+                hostScope: hostScope,
+                rawDirectory: directory
+            )
+        }
+    }
+
+    func fileExplorerRootInputsInDisplayOrder() -> [FileExplorerRootInput] {
+        fileExplorerRootInputsInDisplayOrder(orderedPanelIds: fileExplorerOrderedTerminalPanelIds())
+    }
+
+    func fileExplorerResolvedRootsInDisplayOrder(orderedPanelIds: [UUID]) -> [FileExplorerResolvedRoot] {
+        let terminalPanelIds = orderedPanelIds.filter { terminalPanel(for: $0) != nil }
+        let resolvedDirectories = fileExplorerResolvedPanelDirectories(orderedPanelIds: terminalPanelIds)
+        return FileExplorerRootResolver.resolve(
+            orderedTerminalRoots: fileExplorerRootInputsInDisplayOrder(orderedPanelIds: terminalPanelIds),
+            homeDirectoryForTildeExpansion: sidebarHomeDirectoryForCanonicalization(
+                resolvedPanelDirectories: resolvedDirectories
+            )
+        )
+    }
+
+    func fileExplorerResolvedRootsInDisplayOrder() -> [FileExplorerResolvedRoot] {
+        fileExplorerResolvedRootsInDisplayOrder(orderedPanelIds: fileExplorerOrderedTerminalPanelIds())
+    }
+
+    func fileExplorerRemoteContext() -> FileExplorerRemoteContext? {
+        guard let remoteConfiguration else { return nil }
+        let trimmedRemotePath = remoteDaemonStatus.remotePath?.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
+        return FileExplorerRemoteContext(
+            configuration: remoteConfiguration,
+            remotePath: (trimmedRemotePath?.isEmpty == false) ? trimmedRemotePath : nil
+        )
     }
 
     func sidebarGitBranchesInDisplayOrder(orderedPanelIds: [UUID]) -> [SidebarGitBranchState] {
