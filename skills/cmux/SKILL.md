@@ -44,11 +44,11 @@ cmux trigger-flash --surface surface:7
 
 ## Deep-Dive References
 
-| Reference | When to Use |
-|-----------|-------------|
-| [references/handles-and-identify.md](references/handles-and-identify.md) | Handle syntax, self-identify, caller targeting |
-| [references/windows-workspaces.md](references/windows-workspaces.md) | Window/workspace lifecycle and reorder/move |
-| [references/panes-surfaces.md](references/panes-surfaces.md) | Splits, surfaces, move/reorder, focus routing |
-| [references/trigger-flash-and-health.md](references/trigger-flash-and-health.md) | Flash cue and surface health checks |
-| [../cmux-browser/SKILL.md](../cmux-browser/SKILL.md) | Browser automation on surface-backed webviews |
-| [../cmux-markdown/SKILL.md](../cmux-markdown/SKILL.md) | Markdown viewer panel with live file watching |
+| Reference                                                                        | When to Use                                    |
+| -------------------------------------------------------------------------------- | ---------------------------------------------- |
+| [references/handles-and-identify.md](references/handles-and-identify.md)         | Handle syntax, self-identify, caller targeting |
+| [references/windows-workspaces.md](references/windows-workspaces.md)             | Window/workspace lifecycle and reorder/move    |
+| [references/panes-surfaces.md](references/panes-surfaces.md)                     | Splits, surfaces, move/reorder, focus routing  |
+| [references/trigger-flash-and-health.md](references/trigger-flash-and-health.md) | Flash cue and surface health checks            |
+| [../cmux-browser/SKILL.md](../cmux-browser/SKILL.md)                             | Browser automation on surface-backed webviews  |
+| [../cmux-markdown/SKILL.md](../cmux-markdown/SKILL.md)                           | Markdown viewer panel with live file watching  |
