@@ -119,6 +119,26 @@ final class TitlebarControlsViewModel: ObservableObject {
     weak var notificationsAnchorView: NSView?
 }
 
+enum TitlebarControlSlot: Int, CaseIterable, Hashable {
+    case toggleSidebar
+    case toggleFileExplorer
+    case showNotifications
+    case newTab
+
+    var action: KeyboardShortcutSettings.Action {
+        switch self {
+        case .toggleSidebar:
+            return .toggleSidebar
+        case .toggleFileExplorer:
+            return .toggleFileExplorer
+        case .showNotifications:
+            return .showNotifications
+        case .newTab:
+            return .newTab
+        }
+    }
+}
+
 extension Notification.Name {
     static let cmuxNotificationsPopoverVisibilityDidChange = Notification.Name("cmux.notificationsPopoverVisibilityDidChange")
 }
@@ -258,6 +278,7 @@ struct TitlebarControlsView: View {
     let onToggleNotifications: () -> Void
     let onNewTab: () -> Void
     let visibilityMode: TitlebarControlsVisibilityMode
+    let slots: [TitlebarControlSlot]
     @AppStorage("titlebarControlsStyle") private var styleRawValue = TitlebarControlsStyle.classic.rawValue
     @AppStorage(ShortcutHintDebugSettings.titlebarHintXKey) private var titlebarShortcutHintXOffset = ShortcutHintDebugSettings.defaultTitlebarHintX
     @AppStorage(ShortcutHintDebugSettings.titlebarHintYKey) private var titlebarShortcutHintYOffset = ShortcutHintDebugSettings.defaultTitlebarHintY
@@ -269,24 +290,24 @@ struct TitlebarControlsView: View {
     private let titlebarHintRightSafetyShift: CGFloat = 10
     private let titlebarHintBaseXShift: CGFloat = -10
 
-    private enum HintSlot: Int, CaseIterable {
-        case toggleSidebar
-        case toggleFileExplorer
-        case showNotifications
-        case newTab
-
-        var action: KeyboardShortcutSettings.Action {
-            switch self {
-            case .toggleSidebar:
-                return .toggleSidebar
-            case .toggleFileExplorer:
-                return .toggleFileExplorer
-            case .showNotifications:
-                return .showNotifications
-            case .newTab:
-                return .newTab
-            }
-        }
+    init(
+        notificationStore: TerminalNotificationStore,
+        viewModel: TitlebarControlsViewModel,
+        onToggleSidebar: @escaping () -> Void,
+        onToggleFileExplorer: @escaping () -> Void,
+        onToggleNotifications: @escaping () -> Void,
+        onNewTab: @escaping () -> Void,
+        visibilityMode: TitlebarControlsVisibilityMode,
+        slots: [TitlebarControlSlot] = TitlebarControlSlot.allCases
+    ) {
+        self.notificationStore = notificationStore
+        self.viewModel = viewModel
+        self.onToggleSidebar = onToggleSidebar
+        self.onToggleFileExplorer = onToggleFileExplorer
+        self.onToggleNotifications = onToggleNotifications
+        self.onNewTab = onNewTab
+        self.visibilityMode = visibilityMode
+        self.slots = slots
     }
 
     private struct TitlebarHintLayoutItem: Identifiable {
@@ -361,72 +382,9 @@ struct TitlebarControlsView: View {
     private func controlsGroup(config: TitlebarControlsStyleConfig) -> some View {
         let hintLayoutItems = titlebarHintLayoutItems(config: config)
         let content = HStack(spacing: config.spacing) {
-            TitlebarControlButton(config: config, action: {
-                #if DEBUG
-                dlog("titlebar.toggleSidebar")
-                #endif
-                onToggleSidebar()
-            }) {
-                iconLabel(systemName: "sidebar.left", config: config)
+            ForEach(Array(slots.enumerated()), id: \.element) { _, slot in
+                controlButton(for: slot, config: config)
             }
-            .accessibilityIdentifier("titlebarControl.toggleSidebar")
-            .accessibilityLabel(String(localized: "titlebar.sidebar.accessibilityLabel", defaultValue: "Toggle Sidebar"))
-            .safeHelp(KeyboardShortcutSettings.Action.toggleSidebar.tooltip(String(localized: "titlebar.sidebar.tooltip", defaultValue: "Show or hide the sidebar")))
-
-            TitlebarControlButton(config: config, action: {
-#if DEBUG
-                dlog("titlebar.toggleFileExplorer")
-#endif
-                onToggleFileExplorer()
-            }) {
-                iconLabel(systemName: "sidebar.right", config: config)
-            }
-            .accessibilityIdentifier("titlebarControl.toggleFileExplorer")
-            .accessibilityLabel(String(localized: "titlebar.fileExplorer.accessibilityLabel", defaultValue: "Toggle File Explorer"))
-            .safeHelp(
-                KeyboardShortcutSettings.Action.toggleFileExplorer.tooltip(
-                    String(localized: "titlebar.fileExplorer.tooltip", defaultValue: "Show or hide the file explorer")
-                )
-            )
-
-            TitlebarControlButton(config: config, action: {
-                #if DEBUG
-                dlog("titlebar.notifications")
-                #endif
-                onToggleNotifications()
-            }) {
-                ZStack(alignment: .topTrailing) {
-                    iconLabel(systemName: "bell", config: config)
-
-                    if notificationStore.unreadCount > 0 {
-                        Text("\(min(notificationStore.unreadCount, 99))")
-                            .font(.system(size: max(8, config.badgeSize - 5), weight: .semibold))
-                            .foregroundColor(.white)
-                            .frame(width: config.badgeSize, height: config.badgeSize)
-                            .background(
-                                Circle().fill(cmuxAccentColor())
-                            )
-                            .offset(x: config.badgeOffset.width, y: config.badgeOffset.height)
-                    }
-                }
-                .frame(width: config.buttonSize, height: config.buttonSize)
-            }
-            .accessibilityIdentifier("titlebarControl.showNotifications")
-            .background(NotificationsAnchorView { viewModel.notificationsAnchorView = $0 })
-            .accessibilityLabel(String(localized: "titlebar.notifications.accessibilityLabel", defaultValue: "Notifications"))
-            .safeHelp(KeyboardShortcutSettings.Action.showNotifications.tooltip(String(localized: "titlebar.notifications.tooltip", defaultValue: "Show notifications")))
-
-            TitlebarControlButton(config: config, action: {
-                #if DEBUG
-                dlog("titlebar.newTab")
-                #endif
-                onNewTab()
-            }) {
-                iconLabel(systemName: "plus", config: config)
-            }
-            .accessibilityIdentifier("titlebarControl.newTab")
-            .accessibilityLabel(String(localized: "titlebar.newWorkspace.accessibilityLabel", defaultValue: "New Workspace"))
-            .safeHelp(KeyboardShortcutSettings.Action.newTab.tooltip(String(localized: "titlebar.newWorkspace.tooltip", defaultValue: "New workspace")))
         }
 
         let paddedContent = content.padding(config.groupPadding)
@@ -486,13 +444,13 @@ struct TitlebarControlsView: View {
     ) -> [(action: KeyboardShortcutSettings.Action, shortcut: StoredShortcut, width: CGFloat, interval: ClosedRange<CGFloat>)] {
         guard shouldShowTitlebarShortcutHints else { return [] }
 
-        return HintSlot.allCases.compactMap { slot in
+        return Array(slots.enumerated()).compactMap { index, slot in
             let shortcut = KeyboardShortcutSettings.shortcut(for: slot.action)
             guard shortcut.command else { return nil }
 
             let width = titlebarHintWidth(for: shortcut, config: config)
             let rightEdge = config.groupPadding.leading
-                + titlebarButtonRightEdge(for: slot, config: config)
+                + titlebarButtonRightEdge(forPosition: index, config: config)
                 + xOffset
                 + titlebarHintRightSafetyShift
                 + titlebarHintBaseXShift
@@ -506,9 +464,9 @@ struct TitlebarControlsView: View {
         return ceil(textWidth) + 12
     }
 
-    private func titlebarButtonRightEdge(for slot: HintSlot, config: TitlebarControlsStyleConfig) -> CGFloat {
-        let index = CGFloat(slot.rawValue)
-        return (index + 1) * config.buttonSize + index * config.spacing
+    private func titlebarButtonRightEdge(forPosition index: Int, config: TitlebarControlsStyleConfig) -> CGFloat {
+        let position = CGFloat(index)
+        return (position + 1) * config.buttonSize + position * config.spacing
     }
 
     @ViewBuilder
@@ -563,6 +521,82 @@ struct TitlebarControlsView: View {
                 )
         } else {
             icon
+        }
+    }
+
+    @ViewBuilder
+    private func controlButton(for slot: TitlebarControlSlot, config: TitlebarControlsStyleConfig) -> some View {
+        switch slot {
+        case .toggleSidebar:
+            TitlebarControlButton(config: config, action: {
+                #if DEBUG
+                dlog("titlebar.toggleSidebar")
+                #endif
+                onToggleSidebar()
+            }) {
+                iconLabel(systemName: "sidebar.left", config: config)
+            }
+            .accessibilityIdentifier("titlebarControl.toggleSidebar")
+            .accessibilityLabel(String(localized: "titlebar.sidebar.accessibilityLabel", defaultValue: "Toggle Sidebar"))
+            .safeHelp(KeyboardShortcutSettings.Action.toggleSidebar.tooltip(String(localized: "titlebar.sidebar.tooltip", defaultValue: "Show or hide the sidebar")))
+
+        case .toggleFileExplorer:
+            TitlebarControlButton(config: config, action: {
+                #if DEBUG
+                dlog("titlebar.toggleFileExplorer")
+                #endif
+                onToggleFileExplorer()
+            }) {
+                iconLabel(systemName: "sidebar.right", config: config)
+            }
+            .accessibilityIdentifier("titlebarControl.toggleFileExplorer")
+            .accessibilityLabel(String(localized: "titlebar.fileExplorer.accessibilityLabel", defaultValue: "Toggle File Explorer"))
+            .safeHelp(
+                KeyboardShortcutSettings.Action.toggleFileExplorer.tooltip(
+                    String(localized: "titlebar.fileExplorer.tooltip", defaultValue: "Show or hide the file explorer")
+                )
+            )
+
+        case .showNotifications:
+            TitlebarControlButton(config: config, action: {
+                #if DEBUG
+                dlog("titlebar.notifications")
+                #endif
+                onToggleNotifications()
+            }) {
+                ZStack(alignment: .topTrailing) {
+                    iconLabel(systemName: "bell", config: config)
+
+                    if notificationStore.unreadCount > 0 {
+                        Text("\(min(notificationStore.unreadCount, 99))")
+                            .font(.system(size: max(8, config.badgeSize - 5), weight: .semibold))
+                            .foregroundColor(.white)
+                            .frame(width: config.badgeSize, height: config.badgeSize)
+                            .background(
+                                Circle().fill(cmuxAccentColor())
+                            )
+                            .offset(x: config.badgeOffset.width, y: config.badgeOffset.height)
+                    }
+                }
+                .frame(width: config.buttonSize, height: config.buttonSize)
+            }
+            .accessibilityIdentifier("titlebarControl.showNotifications")
+            .background(NotificationsAnchorView { viewModel.notificationsAnchorView = $0 })
+            .accessibilityLabel(String(localized: "titlebar.notifications.accessibilityLabel", defaultValue: "Notifications"))
+            .safeHelp(KeyboardShortcutSettings.Action.showNotifications.tooltip(String(localized: "titlebar.notifications.tooltip", defaultValue: "Show notifications")))
+
+        case .newTab:
+            TitlebarControlButton(config: config, action: {
+                #if DEBUG
+                dlog("titlebar.newTab")
+                #endif
+                onNewTab()
+            }) {
+                iconLabel(systemName: "plus", config: config)
+            }
+            .accessibilityIdentifier("titlebarControl.newTab")
+            .accessibilityLabel(String(localized: "titlebar.newWorkspace.accessibilityLabel", defaultValue: "New Workspace"))
+            .safeHelp(KeyboardShortcutSettings.Action.newTab.tooltip(String(localized: "titlebar.newWorkspace.tooltip", defaultValue: "New workspace")))
         }
     }
 }
@@ -795,6 +829,7 @@ final class TitlebarControlsAccessoryViewController: NSTitlebarAccessoryViewCont
     private let hostingView: NonDraggableHostingView<TitlebarControlsView>
     private let containerView = NSView()
     private let notificationStore: TerminalNotificationStore
+    private let slots: [TitlebarControlSlot]
     private lazy var notificationsPopover: NSPopover = makeNotificationsPopover()
     private var pendingSizeUpdate = false
     private var fittingSizeNeedsRefresh = true
@@ -803,11 +838,15 @@ final class TitlebarControlsAccessoryViewController: NSTitlebarAccessoryViewCont
     private var lastAppliedLayoutSnapshot: TitlebarControlsLayoutSnapshot?
     private let viewModel = TitlebarControlsViewModel()
     private var userDefaultsObserver: NSObjectProtocol?
-    var popoverIsShownForTesting: Bool { notificationsPopover.isShown }
+    var popoverIsShownForTesting: Bool { slots.contains(.showNotifications) && notificationsPopover.isShown }
     private var showsWorkspaceTitlebar: Bool { !WorkspacePresentationModeSettings.isMinimal() }
 
-    init(notificationStore: TerminalNotificationStore) {
+    init(
+        notificationStore: TerminalNotificationStore,
+        slots: [TitlebarControlSlot] = TitlebarControlSlot.allCases
+    ) {
         self.notificationStore = notificationStore
+        self.slots = slots
         let toggleSidebar = { _ = AppDelegate.shared?.sidebarState?.toggle() }
         let toggleFileExplorer = { _ = AppDelegate.shared?.toggleFileExplorerInActiveMainWindow() }
         let toggleNotifications: () -> Void = { _ = AppDelegate.shared?.toggleNotificationsPopover(animated: true) }
@@ -821,7 +860,8 @@ final class TitlebarControlsAccessoryViewController: NSTitlebarAccessoryViewCont
                 onToggleFileExplorer: toggleFileExplorer,
                 onToggleNotifications: toggleNotifications,
                 onNewTab: newTab,
-                visibilityMode: .alwaysVisible
+                visibilityMode: .alwaysVisible,
+                slots: slots
             )
         )
 
@@ -950,6 +990,7 @@ final class TitlebarControlsAccessoryViewController: NSTitlebarAccessoryViewCont
     }
 
     func toggleNotificationsPopover(animated: Bool = true, externalAnchor: NSView? = nil) {
+        guard slots.contains(.showNotifications) else { return }
         if notificationsPopover.isShown {
             notificationsPopover.performClose(nil)
             return
@@ -1027,6 +1068,55 @@ final class TitlebarControlsAccessoryViewController: NSTitlebarAccessoryViewCont
         // Clear the content view controller to stop SwiftUI observers when popover is hidden
         notificationsPopover.contentViewController = nil
         postNotificationsPopoverVisibilityDidChange(isShown: false)
+    }
+}
+
+final class TitlebarFileExplorerAccessoryViewController: NSTitlebarAccessoryViewController {
+    private let containerView = NSView()
+    private let button: NSButton
+
+    init() {
+        let image = NSImage(systemSymbolName: "sidebar.right", accessibilityDescription: nil) ?? NSImage()
+        image.isTemplate = true
+        let button = NSButton(image: image, target: nil, action: nil)
+        self.button = button
+
+        super.init(nibName: nil, bundle: nil)
+
+        view = containerView
+        containerView.frame = NSRect(x: 0, y: 0, width: 28, height: 24)
+        containerView.translatesAutoresizingMaskIntoConstraints = true
+        containerView.wantsLayer = true
+        containerView.layer?.masksToBounds = false
+
+        button.target = self
+        button.action = #selector(toggleFileExplorer)
+        button.isBordered = false
+        button.bezelStyle = .regularSquare
+        button.imagePosition = .imageOnly
+        button.imageScaling = .scaleProportionallyUpOrDown
+        button.contentTintColor = .labelColor
+        button.focusRingType = .none
+        button.frame = containerView.bounds
+        button.autoresizingMask = [.width, .height]
+        button.toolTip = KeyboardShortcutSettings.Action.toggleFileExplorer.tooltip(
+            String(localized: "titlebar.fileExplorer.tooltip", defaultValue: "Show or hide the file explorer")
+        )
+        button.setAccessibilityIdentifier("titlebarControl.toggleFileExplorer")
+        button.setAccessibilityLabel(
+            String(localized: "titlebar.fileExplorer.accessibilityLabel", defaultValue: "Toggle File Explorer")
+        )
+        containerView.addSubview(button)
+
+        preferredContentSize = containerView.frame.size
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    @objc private func toggleFileExplorer() {
+        AppDelegate.shared?.toggleFileExplorerInActiveMainWindow()
     }
 }
 
@@ -1223,7 +1313,8 @@ final class UpdateTitlebarAccessoryController {
     private var observers: [NSObjectProtocol] = []
     private var pendingAttachRetries: [ObjectIdentifier: Int] = [:]
     private var startupScanWorkItems: [DispatchWorkItem] = []
-    private let controlsIdentifier = NSUserInterfaceItemIdentifier("cmux.titlebarControls")
+    private let leadingControlsIdentifier = NSUserInterfaceItemIdentifier("cmux.titlebarControls")
+    private let trailingFileExplorerIdentifier = NSUserInterfaceItemIdentifier("cmux.titlebarControls.fileExplorer")
     private let controlsControllers = NSHashTable<TitlebarControlsAccessoryViewController>.weakObjects()
 
     init(viewModel: UpdateViewModel) {
@@ -1336,16 +1427,22 @@ final class UpdateTitlebarAccessoryController {
             return
         }
 
-        guard !attachedWindows.contains(window) else { return }
-
-        if !window.titlebarAccessoryViewControllers.contains(where: { $0.view.identifier == controlsIdentifier }) {
+        if !window.titlebarAccessoryViewControllers.contains(where: { $0.view.identifier == leadingControlsIdentifier }) {
             let controls = TitlebarControlsAccessoryViewController(
-                notificationStore: TerminalNotificationStore.shared
+                notificationStore: TerminalNotificationStore.shared,
+                slots: [.toggleSidebar, .showNotifications, .newTab]
             )
             controls.layoutAttribute = .left
-            controls.view.identifier = controlsIdentifier
+            controls.view.identifier = leadingControlsIdentifier
             window.addTitlebarAccessoryViewController(controls)
             controlsControllers.add(controls)
+        }
+
+        if !window.titlebarAccessoryViewControllers.contains(where: { $0.view.identifier == trailingFileExplorerIdentifier }) {
+            let fileExplorerControl = TitlebarFileExplorerAccessoryViewController()
+            fileExplorerControl.layoutAttribute = .right
+            fileExplorerControl.view.identifier = trailingFileExplorerIdentifier
+            window.addTitlebarAccessoryViewController(fileExplorerControl)
         }
 
         attachedWindows.add(window)
@@ -1361,7 +1458,8 @@ final class UpdateTitlebarAccessoryController {
 
     private func removeAccessoryIfPresent(from window: NSWindow) {
         let matchingIndices = window.titlebarAccessoryViewControllers.indices.reversed().filter { index in
-            window.titlebarAccessoryViewControllers[index].view.identifier == controlsIdentifier
+            let identifier = window.titlebarAccessoryViewControllers[index].view.identifier
+            return identifier == leadingControlsIdentifier || identifier == trailingFileExplorerIdentifier
         }
         guard !matchingIndices.isEmpty || attachedWindows.contains(window) else { return }
 

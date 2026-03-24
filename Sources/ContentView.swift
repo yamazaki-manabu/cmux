@@ -3610,9 +3610,13 @@ struct ContentView: View {
     }
 
     private func setTitlebarControlsHidden(_ hidden: Bool, in window: NSWindow) {
-        let controlsId = NSUserInterfaceItemIdentifier("cmux.titlebarControls")
+        let controlIdentifiers: Set<NSUserInterfaceItemIdentifier> = [
+            NSUserInterfaceItemIdentifier("cmux.titlebarControls"),
+            NSUserInterfaceItemIdentifier("cmux.titlebarControls.fileExplorer")
+        ]
         for accessory in window.titlebarAccessoryViewControllers {
-            if accessory.view.identifier == controlsId {
+            if let identifier = accessory.view.identifier,
+               controlIdentifiers.contains(identifier) {
                 accessory.isHidden = hidden
                 accessory.view.alphaValue = hidden ? 0 : 1
             }
