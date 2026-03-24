@@ -1929,6 +1929,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         Self.cachedIsRunningUnderXCTest
     }
 
+    private var shouldEnableTitlebarAccessories: Bool {
+        let env = ProcessInfo.processInfo.environment
+        if env["CMUX_UI_TEST_MODE"] == "1" {
+            return true
+        }
+        return !isRunningUnderXCTest(env)
+    }
+
     private static func detectRunningUnderXCTest(_ env: [String: String]) -> Bool {
         if env["XCTestConfigurationFilePath"] != nil { return true }
         if env["XCTestBundlePath"] != nil { return true }
@@ -2338,7 +2346,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
             syncMenuBarExtraVisibility()
             updateController.startUpdaterIfNeeded()
         }
-        if !isRunningUnderXCTest {
+        if shouldEnableTitlebarAccessories {
             titlebarAccessoryController.start()
         }
         windowDecorationsController.start()
@@ -8628,7 +8636,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
 #endif
 
     func attachUpdateAccessory(to window: NSWindow) {
-        guard !isRunningUnderXCTestCached else { return }
+        guard shouldEnableTitlebarAccessories else { return }
         titlebarAccessoryController.start()
         titlebarAccessoryController.attach(to: window)
     }
